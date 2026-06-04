@@ -71,6 +71,69 @@
     text-shadow: 0 0 20px rgba(255,100,0,1);
   }
   @keyframes shake { from { transform: translate(-50%,-50%) rotate(-1deg); } to { transform: translate(-50%,-50%) rotate(1deg); } }
+
+  /* Stats panel */
+  #stats-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 40; display: none; align-items: flex-end; justify-content: center;
+  }
+  #stats-overlay.show { display: flex; }
+  #stats-sheet {
+    width: 100%; max-width: 480px;
+    background: linear-gradient(170deg, #0d2045, #071228);
+    border: 1px solid rgba(100,180,255,0.25);
+    border-radius: 24px 24px 0 0;
+    padding: 0 20px calc(env(safe-area-inset-bottom, 16px) + 16px);
+    transform: translateY(100%); transition: transform 0.35s cubic-bezier(.32,1.2,.5,1);
+  }
+  #stats-overlay.show #stats-sheet { transform: translateY(0); }
+  #stats-handle {
+    width: 40px; height: 4px; background: rgba(255,255,255,0.25);
+    border-radius: 2px; margin: 12px auto 18px;
+  }
+  #stats-title {
+    color: #fff; font-size: 17px; font-weight: 800; text-align: center;
+    letter-spacing: 0.5px; margin-bottom: 18px;
+    text-shadow: 0 0 16px rgba(0,150,255,0.7);
+  }
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px; padding: 12px 14px;
+  }
+  .stat-card .s-label { color: rgba(180,210,255,0.7); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .stat-card .s-value { color: #fff; font-size: 22px; font-weight: 800; }
+  .stat-card .s-sub { color: rgba(180,210,255,0.6); font-size: 11px; margin-top: 2px; }
+  .stats-divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0; }
+  .stat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #fff; font-size: 14px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .sr-label { color: rgba(180,210,255,0.75); font-size: 13px; }
+  .stat-row .sr-val { font-weight: 700; font-size: 14px; }
+  .star-row { display: flex; gap: 3px; }
+  .star { font-size: 14px; opacity: 0.25; }
+  .star.on { opacity: 1; }
+  #close-stats {
+    width: 100%; padding: 13px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 14px;
+    -webkit-user-select: none; user-select: none;
+  }
+  #close-stats:active { background: rgba(255,255,255,0.15); }
+  .worker-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .w-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #aaa;
+  }
+  .w-dot.moving { background: #44ff88; }
+  .w-dot.gathering { background: #ffcc00; }
+  .w-dot.returning { background: #ff8844; }
+  .w-dot.idle { background: #8899bb; }
 </style>
 </head>
 <body>
@@ -90,9 +153,71 @@
   <div class="btn" id="btn-wall" onclick="upgradeWall()"><span class="btn-icon">🧱</span>Wall<br><span id="wall-cost" style="color:#adf">🪵30</span></div>
   <div class="btn" id="btn-fire" onclick="upgradeFire()"><span class="btn-icon">🔥</span>Hearth<br><span id="fire-cost" style="color:#adf">🪵20</span></div>
   <div class="btn" id="btn-feast" onclick="feast()"><span class="btn-icon">🍖</span>Feast<br><span id="feast-cost" style="color:#adf">🥩15</span></div>
+  <div class="btn" onclick="openStats()"><span class="btn-icon">📊</span>Stats<br><span style="color:#adf">Info</span></div>
 </div>
 <div id="toast"></div>
 <div id="storm-warning">🌨️ BLIZZARD INCOMING! 🌨️<br><small style="font-size:14px;font-weight:500">Survive the storm!</small></div>
+
+<!-- Stats panel -->
+<div id="stats-overlay" onclick="closeStatsIfBg(event)">
+  <div id="stats-sheet">
+    <div id="stats-handle"></div>
+    <div id="stats-title">📊 CAMP REPORT</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="s-label">Current Day</div>
+        <div class="s-value" id="st-day">1</div>
+        <div class="s-sub">Keep surviving</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Storms Survived</div>
+        <div class="s-value" id="st-storms">0</div>
+        <div class="s-sub">Next: day <span id="st-next-storm">5</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Gold Collected</div>
+        <div class="s-value" id="st-tgold">0</div>
+        <div class="s-sub">🪙 all-time</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Food Collected</div>
+        <div class="s-value" id="st-tfood">0</div>
+        <div class="s-sub">🥩 all-time</div>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <span class="sr-label">🪵 Wood Collected</span>
+      <span class="sr-val" id="st-twood">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">👷 Workers</span>
+      <span class="sr-val" id="st-wcount">3</span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">🧱 Wall Level</span>
+      <span class="sr-val">
+        <span class="star-row" id="st-wall-stars"></span>
+      </span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">🔥 Hearth Level</span>
+      <span class="sr-val">
+        <span class="star-row" id="st-fire-stars"></span>
+      </span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">Worker Status</span>
+      <span class="sr-val"><div class="worker-dots" id="st-wdots"></div></span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">🌨️ Storm Protection</span>
+      <span class="sr-val" id="st-protection">0%</span>
+    </div>
+
+    <button id="close-stats" onclick="closeStats()">Close</button>
+  </div>
+</div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -126,6 +251,7 @@ const state = {
   cameraX: 0, cameraY: 0,
   tick: 0,
   survivalScore: 0,
+  totalGold: 0, totalFood: 0, totalWood: 0,
 };
 
 // ─── Iso projection ──────────────────────────────────────────────────────────
@@ -271,6 +397,7 @@ function updateWorker(w, dt) {
     const dist = Math.hypot(dx, dy);
     if (dist < 0.18) {
       state[w.carrying] += w.carryAmt;
+      state['total' + w.carrying.charAt(0).toUpperCase() + w.carrying.slice(1)] += w.carryAmt;
       w.carrying = null; w.carryAmt = 0;
       w.gx = tx; w.gy = ty;
       w.state = 'idle';
@@ -859,6 +986,44 @@ function feast() {
   updateHUD();
 }
 
+// ─── Stats panel ─────────────────────────────────────────────────────────────
+function openStats() {
+  const nextStorm = Math.ceil(state.day / 5) * 5;
+  document.getElementById('st-day').textContent = state.day;
+  document.getElementById('st-storms').textContent = state.survivalScore;
+  document.getElementById('st-next-storm').textContent = nextStorm;
+  document.getElementById('st-tgold').textContent = state.totalGold;
+  document.getElementById('st-tfood').textContent = state.totalFood;
+  document.getElementById('st-twood').textContent = state.totalWood;
+  document.getElementById('st-wcount').textContent = state.workers.length;
+
+  // Wall stars (max 3)
+  const wallEl = document.getElementById('st-wall-stars');
+  wallEl.innerHTML = [1,2,3].map(i => `<span class="star${i <= state.wallLevel ? ' on' : ''}">⭐</span>`).join('');
+
+  // Fire stars (max 5)
+  const fireEl = document.getElementById('st-fire-stars');
+  fireEl.innerHTML = [1,2,3,4,5].map(i => `<span class="star${i <= state.fireLevel ? ' on' : ''}">🔥</span>`).join('');
+
+  // Worker dots
+  const dotsEl = document.getElementById('st-wdots');
+  dotsEl.innerHTML = state.workers.map(w => `<div class="w-dot ${w.state}" title="${w.state}"></div>`).join('');
+
+  // Storm protection
+  const prot = Math.min(100, (state.wallLevel * 2 + state.fireLevel * 2) * 10);
+  document.getElementById('st-protection').textContent = prot + '%';
+
+  document.getElementById('stats-overlay').classList.add('show');
+}
+
+function closeStats() {
+  document.getElementById('stats-overlay').classList.remove('show');
+}
+
+function closeStatsIfBg(e) {
+  if (e.target === document.getElementById('stats-overlay')) closeStats();
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg) {
@@ -921,6 +1086,7 @@ function saveGame() {
       wallLevel: state.wallLevel, wallCost: state.wallCost,
       fireLevel: state.fireLevel, fireCost: state.fireCost,
       day: state.day, survivalScore: state.survivalScore,
+      totalGold: state.totalGold, totalFood: state.totalFood, totalWood: state.totalWood,
     }));
   } catch(e) {}
 }
@@ -940,6 +1106,9 @@ function loadGame() {
     state.fireCost = s.fireCost ?? 20;
     state.day = s.day ?? 1;
     state.survivalScore = s.survivalScore ?? 0;
+    state.totalGold = s.totalGold ?? 0;
+    state.totalFood = s.totalFood ?? 0;
+    state.totalWood = s.totalWood ?? 0;
     document.getElementById('day-num').textContent = state.day;
     const extra = Math.max(0, (s.workerCount ?? 3) - 3);
     for (let i = 0; i < extra; i++) state.workers.push(createWorker(3 + i));
