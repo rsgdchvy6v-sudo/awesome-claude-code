@@ -399,6 +399,7 @@
     <div id="st-ach-badges" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 
     <button class="close-btn" onclick="closeOverlay('stats-overlay')">Close</button>
+    <button class="close-btn" onclick="confirmReset()" style="margin-top:8px;background:rgba(180,30,30,0.25);border-color:rgba(255,80,80,0.35);color:#ff8888;">🗑️ Reset Game</button>
   </div>
 </div>
 
@@ -1664,6 +1665,22 @@ function openStats() {
 
 function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
 function closeBg(e, id) { if (e.target === document.getElementById(id)) closeOverlay(id); }
+
+// ─── Reset game ───────────────────────────────────────────────────────────────
+function confirmReset() {
+  closeOverlay('stats-overlay');
+  showModal('🗑️ Reset Game',
+    'This will <b style="color:#ff8888;">erase all progress</b> — resources, workers, research, achievements, and days survived.<br><br>Are you sure?',
+    [
+      { label: 'Cancel', kind: 'secondary' },
+      { label: 'Reset Everything', kind: 'primary', onClick: resetGame },
+    ]);
+}
+
+function resetGame() {
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  location.reload();
+}
 
 // ─── Generic modal ────────────────────────────────────────────────────────────
 function showModal(title, bodyHtml, actions) {
