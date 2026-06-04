@@ -213,9 +213,11 @@ function assignWorker(w) {
 }
 
 function updateWorker(w, dt) {
-  const bob = Math.sin(state.tick * 0.08 + w.bobOffset) * 1.5;
+  // Always sync screen coords from grid coords (no bob — applied at draw time only)
+  const syncPos = () => { const p = isoProject(w.gx, w.gy); w.x = p.x; w.y = p.y; };
 
   if (w.state === 'idle') {
+    syncPos();
     assignWorker(w);
     return;
   }
@@ -234,11 +236,12 @@ function updateWorker(w, dt) {
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
-    const p = isoProject(w.gx, w.gy);
-    w.x = p.x; w.y = p.y + bob;
+    syncPos();
+    return;
   }
 
   if (w.state === 'gathering') {
+    syncPos();
     w.gatherTimer += dt;
     if (w.gatherTimer > 80) {
       const node = w.targetNode;
@@ -248,10 +251,11 @@ function updateWorker(w, dt) {
       if (node.stock <= 0) { node.depleted = true; node.stock = 0; }
       w.carrying = node.yield;
       w.carryAmt = take;
-      w.state = 'returning';
+      spawnFloat('+' + take + (node.yield === 'wood' ? '🪵' : node.yield === 'food' ? '🥩' : '🪙'), w.x, w.y - 20);
       w.targetNode = null;
-      spawnFloat('+' + take + (node.yield === 'wood' ? '🪵' : node.yield === 'food' ? '🥩' : '🪙'), isoProject(node.gx, node.gy).x, isoProject(node.gx, node.gy).y - 20);
+      w.state = 'returning';
     }
+    return;
   }
 
   if (w.state === 'returning') {
@@ -264,12 +268,11 @@ function updateWorker(w, dt) {
       w.state = 'idle';
       updateHUD();
     } else {
-      const spd = w.speed * dt * 0.055;
+      const spd = w.speed * dt * 0.06;
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
-    const p = isoProject(w.gx, w.gy);
-    w.x = p.x; w.y = p.y + bob;
+    syncPos();
   }
 }
 
