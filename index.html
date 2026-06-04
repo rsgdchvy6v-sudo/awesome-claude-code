@@ -16,7 +16,13 @@
     background: linear-gradient(to bottom, rgba(10,22,40,0.92), transparent);
     pointer-events: none; z-index: 10;
   }
-  #title { color: #fff; font-size: 18px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,150,255,0.8), 0 0 20px rgba(0,150,255,0.4); letter-spacing: 1px; margin-bottom: 6px; }
+  #title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  #title { color: #fff; font-size: 18px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,150,255,0.8), 0 0 20px rgba(0,150,255,0.4); letter-spacing: 1px; }
+  #season-badge {
+    display: none; background: linear-gradient(135deg,#ffcf3a,#ff8a00);
+    color: #2a1500; font-size: 11px; font-weight: 800; padding: 2px 9px;
+    border-radius: 10px; box-shadow: 0 0 12px rgba(255,180,0,0.7);
+  }
   #resources {
     display: flex; gap: 8px; flex-wrap: wrap;
   }
@@ -27,24 +33,58 @@
     padding: 4px 10px; color: #fff; font-size: 13px; font-weight: 700;
   }
   .res-icon { font-size: 15px; }
+  #storm-bar-wrap {
+    margin-top: 6px; height: 6px; width: 100%; max-width: 320px;
+    background: rgba(0,0,0,0.35); border-radius: 4px; overflow: hidden;
+    position: relative; pointer-events: none;
+  }
+  #storm-bar { height: 100%; width: 0%; border-radius: 4px; transition: width 0.3s, background 0.4s; }
+  #storm-soon {
+    display: none; color: #ffd24a; font-size: 11px; font-weight: 800;
+    margin-top: 3px; text-shadow: 0 0 8px rgba(255,120,0,0.8);
+  }
+  #hunger-wrap {
+    display: none; margin-top: 6px; height: 6px; width: 100%; max-width: 320px;
+    background: rgba(0,0,0,0.35); border-radius: 4px; overflow: hidden; pointer-events: none;
+  }
+  #hunger-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#ff6644,#cc1100); border-radius: 4px; transition: width 0.3s; }
+  #hunger-label { display: none; color: #ff8866; font-size: 10px; font-weight: 700; margin-top: 2px; }
+  #season-cta {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 12px) + 92px);
+    display: none; z-index: 12;
+    background: linear-gradient(135deg,#ffd84a,#ff8a00);
+    color: #2a1500; font-size: 14px; font-weight: 900; padding: 10px 20px;
+    border-radius: 18px; border: 2px solid rgba(255,255,255,0.6);
+    box-shadow: 0 0 24px rgba(255,180,0,0.85); cursor: pointer;
+    animation: glowpulse 1.4s infinite alternate;
+    -webkit-user-select: none; user-select: none;
+  }
+  @keyframes glowpulse {
+    from { box-shadow: 0 0 14px rgba(255,180,0,0.6); transform: translateX(-50%) scale(1); }
+    to { box-shadow: 0 0 34px rgba(255,210,0,1); transform: translateX(-50%) scale(1.05); }
+  }
   #bottom-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
-    padding: 12px 16px calc(env(safe-area-inset-bottom, 12px) + 8px);
+    padding: 12px 12px calc(env(safe-area-inset-bottom, 12px) + 8px);
     background: linear-gradient(to top, rgba(10,22,40,0.95), transparent);
     z-index: 10;
-    display: flex; gap: 10px; justify-content: center;
+    display: flex; gap: 10px; justify-content: flex-start;
+    overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;
   }
+  #bottom-bar::-webkit-scrollbar { display: none; }
   .btn {
     background: linear-gradient(135deg, #1a6abf, #0d3f73);
     border: 1.5px solid rgba(100,180,255,0.5);
     border-radius: 16px; color: #fff; font-size: 12px; font-weight: 700;
     padding: 10px 14px; cursor: pointer; text-align: center;
-    min-width: 70px; transition: all 0.15s;
+    min-width: 70px; flex: 0 0 auto; transition: all 0.15s;
     box-shadow: 0 4px 12px rgba(0,100,200,0.3);
     -webkit-user-select: none; user-select: none;
   }
   .btn:active { transform: scale(0.93); background: linear-gradient(135deg, #2580df, #1050a0); }
   .btn.disabled { opacity: 0.4; }
+  .btn.repair { background: linear-gradient(135deg,#b5642a,#7a3a10); border-color: rgba(255,180,100,0.5); }
   .btn-icon { font-size: 18px; display: block; margin-bottom: 2px; }
   #toast {
     position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
@@ -52,7 +92,7 @@
     border: 1px solid rgba(100,160,255,0.4); border-radius: 12px;
     color: #fff; font-size: 13px; font-weight: 600; padding: 8px 18px;
     pointer-events: none; z-index: 20; opacity: 0; transition: opacity 0.3s;
-    white-space: nowrap;
+    white-space: nowrap; max-width: 90%; text-align: center;
   }
   #toast.show { opacity: 1; }
   #day-counter {
@@ -64,14 +104,14 @@
     background: rgba(0,0,0,0.3); border-radius: 10px; padding: 4px 10px;
     pointer-events: none;
   }
-  #stats-btn {
+  .icon-btn {
     width: 32px; height: 32px; border-radius: 50%;
     background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
     border: 1.5px solid rgba(255,255,255,0.25);
     display: flex; align-items: center; justify-content: center;
     font-size: 16px; cursor: pointer; -webkit-user-select: none; user-select: none;
   }
-  #stats-btn:active { background: rgba(255,255,255,0.3); }
+  .icon-btn:active { background: rgba(255,255,255,0.3); }
   #storm-warning {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: rgba(180, 40, 40, 0.95); backdrop-filter: blur(12px);
@@ -81,28 +121,38 @@
     animation: shake 0.5s infinite alternate;
     text-shadow: 0 0 20px rgba(255,100,0,1);
   }
-  @keyframes shake { from { transform: translate(-50%,-50%) rotate(-1deg); } to { transform: translate(-50%,-50%) rotate(1deg); } }
+  #raid-warning {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(140, 20, 20, 0.96); backdrop-filter: blur(12px);
+    border: 2px solid rgba(255,60,60,0.8); border-radius: 20px;
+    color: #fff; font-size: 22px; font-weight: 900; padding: 20px 32px;
+    text-align: center; z-index: 31; display: none;
+    animation: shake 0.4s infinite alternate;
+    text-shadow: 0 0 22px rgba(255,0,0,1);
+  }
+  @keyframes shake { from { transform: translate(-50%,-50%) rotate(-1.5deg); } to { transform: translate(-50%,-50%) rotate(1.5deg); } }
 
-  /* Stats panel */
-  #stats-overlay {
+  /* Bottom sheets (stats, research, achievements) */
+  .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
     z-index: 40; display: none; align-items: flex-end; justify-content: center;
   }
-  #stats-overlay.show { display: flex; }
-  #stats-sheet {
-    width: 100%; max-width: 480px;
+  .overlay.show { display: flex; }
+  .sheet {
+    width: 100%; max-width: 480px; max-height: 86vh; overflow-y: auto;
     background: linear-gradient(170deg, #0d2045, #071228);
     border: 1px solid rgba(100,180,255,0.25);
     border-radius: 24px 24px 0 0;
     padding: 0 20px calc(env(safe-area-inset-bottom, 16px) + 16px);
     transform: translateY(100%); transition: transform 0.35s cubic-bezier(.32,1.2,.5,1);
+    -webkit-overflow-scrolling: touch;
   }
-  #stats-overlay.show #stats-sheet { transform: translateY(0); }
-  #stats-handle {
+  .overlay.show .sheet { transform: translateY(0); }
+  .sheet-handle {
     width: 40px; height: 4px; background: rgba(255,255,255,0.25);
-    border-radius: 2px; margin: 12px auto 18px;
+    border-radius: 2px; margin: 12px auto 18px; position: sticky; top: 0;
   }
-  #stats-title {
+  .sheet-title {
     color: #fff; font-size: 17px; font-weight: 800; text-align: center;
     letter-spacing: 0.5px; margin-bottom: 18px;
     text-shadow: 0 0 16px rgba(0,150,255,0.7);
@@ -129,53 +179,161 @@
   .star-row { display: flex; gap: 3px; }
   .star { font-size: 14px; opacity: 0.25; }
   .star.on { opacity: 1; }
-  #close-stats {
+  .close-btn {
     width: 100%; padding: 13px; background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
     color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 14px;
     -webkit-user-select: none; user-select: none;
   }
-  #close-stats:active { background: rgba(255,255,255,0.15); }
-  .worker-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .close-btn:active { background: rgba(255,255,255,0.15); }
+  .worker-rows { margin-top: 6px; }
+
+  /* Worker order bar */
+  #order-bar {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 12px) + 88px); left: 0; right: 0;
+    display: flex; justify-content: center; gap: 8px; z-index: 10;
+    padding: 0 12px; pointer-events: none;
+  }
+  .order-btn {
+    background: rgba(20,40,80,0.82); backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(100,160,255,0.3); border-radius: 20px;
+    color: rgba(200,220,255,0.8); font-size: 12px; font-weight: 700;
+    padding: 6px 14px; cursor: pointer; pointer-events: auto;
+    -webkit-user-select: none; user-select: none; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .order-btn:active { transform: scale(0.93); }
+  .order-btn.active {
+    background: linear-gradient(135deg, #1a6abf, #0d3f73);
+    border-color: rgba(100,200,255,0.7);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0,150,255,0.5);
+  }
+  .w-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; color: #fff; font-size: 13px; }
   .w-dot {
-    width: 10px; height: 10px; border-radius: 50%;
+    width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto;
     background: #aaa;
   }
   .w-dot.moving { background: #44ff88; }
   .w-dot.gathering { background: #ffcc00; }
   .w-dot.returning { background: #ff8844; }
   .w-dot.idle { background: #8899bb; }
+  .w-state-txt { color: rgba(180,210,255,0.6); font-size: 11px; margin-left: auto; }
+
+  /* Research */
+  .research-card {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .research-card:active { transform: scale(0.98); }
+  .research-card.locked { opacity: 0.45; }
+  .research-card.maxed { opacity: 0.7; border-color: rgba(255,210,80,0.4); }
+  .rc-icon { font-size: 26px; flex: 0 0 auto; }
+  .rc-mid { flex: 1; min-width: 0; }
+  .rc-name { color: #fff; font-size: 14px; font-weight: 800; }
+  .rc-desc { color: rgba(180,210,255,0.7); font-size: 11px; margin-top: 2px; white-space: normal; }
+  .rc-lvl { display: flex; gap: 3px; margin-top: 5px; }
+  .rc-pip { width: 16px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.15); }
+  .rc-pip.on { background: linear-gradient(90deg,#4ad6ff,#2a8fff); }
+  .rc-cost {
+    flex: 0 0 auto; background: rgba(0,0,0,0.3); border-radius: 10px;
+    padding: 6px 10px; color: #ffd24a; font-size: 13px; font-weight: 800; text-align: center;
+  }
+  .rc-cost.maxed { color: #ffd24a; }
+
+  /* Achievements */
+  .ach-card {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; margin-bottom: 8px; opacity: 0.5;
+  }
+  .ach-card.unlocked {
+    opacity: 1; background: linear-gradient(135deg, rgba(255,200,60,0.18), rgba(255,140,0,0.08));
+    border-color: rgba(255,200,60,0.5);
+  }
+  .ach-ico { font-size: 24px; flex: 0 0 auto; filter: grayscale(1); }
+  .ach-card.unlocked .ach-ico { filter: none; }
+  .ach-mid { flex: 1; }
+  .ach-name { color: #fff; font-size: 13px; font-weight: 800; }
+  .ach-desc { color: rgba(180,210,255,0.65); font-size: 11px; margin-top: 1px; }
+  .ach-check { font-size: 16px; color: #ffd24a; flex: 0 0 auto; }
+
+  /* Generic modal (offline / prestige confirm) */
+  #modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+    z-index: 50; display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal-box {
+    width: 100%; max-width: 360px;
+    background: linear-gradient(170deg, #102a55, #07142c);
+    border: 1.5px solid rgba(100,180,255,0.35); border-radius: 22px;
+    padding: 24px 22px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  #modal-title { color: #fff; font-size: 18px; font-weight: 900; margin-bottom: 10px; text-shadow: 0 0 16px rgba(0,150,255,0.7); }
+  #modal-body { color: rgba(210,225,255,0.9); font-size: 14px; line-height: 1.5; margin-bottom: 18px; }
+  #modal-body b { color: #ffd24a; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-btn {
+    flex: 1; padding: 13px; border-radius: 14px; font-size: 15px; font-weight: 800;
+    cursor: pointer; border: none; -webkit-user-select: none; user-select: none;
+  }
+  .modal-btn.primary { background: linear-gradient(135deg,#1a8adf,#0d4f93); color: #fff; }
+  .modal-btn.primary:active { transform: scale(0.96); }
+  .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #fff; }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
 <div id="hud">
-  <div id="title">❄️ FROST SURVIVAL</div>
+  <div id="title-row">
+    <div id="title">❄️ FROST SURVIVAL</div>
+    <div id="season-badge">Season 1</div>
+  </div>
   <div id="resources">
     <div class="res-pill"><span class="res-icon">🪙</span><span id="r-gold">0</span></div>
     <div class="res-pill"><span class="res-icon">🥩</span><span id="r-food">0</span></div>
     <div class="res-pill"><span class="res-icon">🪵</span><span id="r-wood">0</span></div>
     <div class="res-pill"><span class="res-icon">👷</span><span id="r-workers">3</span></div>
   </div>
+  <div id="storm-bar-wrap"><div id="storm-bar"></div></div>
+  <div id="storm-soon">⚠️ STORM SOON</div>
+  <div id="hunger-wrap"><div id="hunger-bar"></div></div>
+  <div id="hunger-label">🍖 STARVING</div>
 </div>
 <div id="day-counter">
   <div id="day-label">Day <span id="day-num">1</span></div>
-  <div id="stats-btn" onclick="openStats()">📊</div>
+  <div class="icon-btn" onclick="openStats()">📊</div>
+  <div class="icon-btn" onclick="openResearch()">🔬</div>
+  <div class="icon-btn" onclick="openAchievements()">🏆</div>
+</div>
+<div id="season-cta" onclick="confirmPrestige()">🌟 New Season</div>
+<div id="order-bar">
+  <button class="order-btn active" id="order-any" onclick="setOrder('any')">🔄 All</button>
+  <button class="order-btn" id="order-gold" onclick="setOrder('gold')">🪙 Gold</button>
+  <button class="order-btn" id="order-food" onclick="setOrder('food')">🥩 Food</button>
+  <button class="order-btn" id="order-wood" onclick="setOrder('wood')">🪵 Wood</button>
 </div>
 <div id="bottom-bar">
   <div class="btn" id="btn-worker" onclick="buyWorker()"><span class="btn-icon">👷</span>Worker<br><span id="worker-cost" style="color:#adf">🪙20</span></div>
   <div class="btn" id="btn-wall" onclick="upgradeWall()"><span class="btn-icon">🧱</span>Wall<br><span id="wall-cost" style="color:#adf">🪵30</span></div>
   <div class="btn" id="btn-fire" onclick="upgradeFire()"><span class="btn-icon">🔥</span>Hearth<br><span id="fire-cost" style="color:#adf">🪵20</span></div>
+  <div class="btn" id="btn-storage" onclick="upgradeStorage()"><span class="btn-icon">📦</span>Storage<br><span id="storage-cost" style="color:#adf">🪵25</span></div>
   <div class="btn" id="btn-feast" onclick="feast()"><span class="btn-icon">🍖</span>Feast<br><span id="feast-cost" style="color:#adf">🥩15</span></div>
+  <div class="btn repair" id="btn-repair" onclick="repairWall()" style="display:none"><span class="btn-icon">🔨</span>Repair<br><span id="repair-cost" style="color:#fda">🪵0</span></div>
 </div>
 <div id="toast"></div>
 <div id="storm-warning">🌨️ BLIZZARD INCOMING! 🌨️<br><small style="font-size:14px;font-weight:500">Survive the storm!</small></div>
+<div id="raid-warning">⚔️ RAIDERS ATTACKING! ⚔️<br><small style="font-size:14px;font-weight:500">Defend the camp!</small></div>
 
 <!-- Stats panel -->
-<div id="stats-overlay" onclick="closeStatsIfBg(event)">
-  <div id="stats-sheet">
-    <div id="stats-handle"></div>
-    <div id="stats-title">📊 CAMP REPORT</div>
+<div id="stats-overlay" class="overlay" onclick="closeBg(event,'stats-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📊 CAMP REPORT</div>
     <div class="stats-grid">
       <div class="stat-card">
         <div class="s-label">Current Day</div>
@@ -208,10 +366,18 @@
       <span class="sr-val" id="st-wcount">3</span>
     </div>
     <div class="stat-row">
+      <span class="sr-label">📦 Storage Cap</span>
+      <span class="sr-val" id="st-storage">100</span>
+    </div>
+    <div class="stat-row">
       <span class="sr-label">🧱 Wall Level</span>
       <span class="sr-val">
         <span class="star-row" id="st-wall-stars"></span>
       </span>
+    </div>
+    <div class="stat-row">
+      <span class="sr-label">🔧 Wall Damage</span>
+      <span class="sr-val" id="st-walldmg">0 / 3</span>
     </div>
     <div class="stat-row">
       <span class="sr-label">🔥 Hearth Level</span>
@@ -220,15 +386,50 @@
       </span>
     </div>
     <div class="stat-row">
-      <span class="sr-label">Worker Status</span>
-      <span class="sr-val"><div class="worker-dots" id="st-wdots"></div></span>
-    </div>
-    <div class="stat-row">
       <span class="sr-label">🌨️ Storm Protection</span>
       <span class="sr-val" id="st-protection">0%</span>
     </div>
 
-    <button id="close-stats" onclick="closeStats()">Close</button>
+    <hr class="stats-divider">
+    <div class="sr-label" style="color:rgba(180,210,255,0.75);font-size:13px;margin-bottom:6px;">Workers</div>
+    <div class="worker-rows" id="st-wrows"></div>
+
+    <hr class="stats-divider">
+    <div class="sr-label" style="color:rgba(180,210,255,0.75);font-size:13px;margin-bottom:6px;">🏆 Achievements Earned</div>
+    <div id="st-ach-badges" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+
+    <button class="close-btn" onclick="closeOverlay('stats-overlay')">Close</button>
+  </div>
+</div>
+
+<!-- Research panel -->
+<div id="research-overlay" class="overlay" onclick="closeBg(event,'research-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔬 RESEARCH TREE</div>
+    <div style="text-align:center;color:rgba(180,210,255,0.8);font-size:13px;margin-bottom:14px;">Available: <b style="color:#ffd24a;" id="research-gold">0 🪙</b></div>
+    <div id="research-list"></div>
+    <button class="close-btn" onclick="closeOverlay('research-overlay')">Close</button>
+  </div>
+</div>
+
+<!-- Achievements panel -->
+<div id="ach-overlay" class="overlay" onclick="closeBg(event,'ach-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🏆 ACHIEVEMENTS</div>
+    <div style="text-align:center;color:rgba(180,210,255,0.8);font-size:13px;margin-bottom:14px;"><span id="ach-count">0</span> / 10 unlocked</div>
+    <div id="ach-list"></div>
+    <button class="close-btn" onclick="closeOverlay('ach-overlay')">Close</button>
+  </div>
+</div>
+
+<!-- Generic modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
   </div>
 </div>
 
@@ -249,6 +450,30 @@ const TW = 52, TH = 26; // isometric tile width/height
 const GRID_COLS = 14, GRID_ROWS = 14;
 const BASE_CX = 7, BASE_CY = 7; // base center in grid
 
+const WORKER_NAMES = ['Erik','Bjorn','Freya','Sigrid','Leif','Astrid','Gunnar','Ingrid','Ragnar','Helga','Olaf','Saga','Thorvald','Runa','Magnus','Edda','Ivar','Solveig','Ulf','Hilde'];
+
+const RESEARCH_DEFS = {
+  swift:   { icon: '⚡', name: 'Swift Feet',   desc: 'Workers +15% speed per level',          costs: [20,40,80] },
+  strong:  { icon: '💪', name: 'Strong Back',  desc: 'Gather amount +1 per level',            costs: [25,50,100] },
+  sense:   { icon: '🌡️', name: 'Storm Sense', desc: 'Storm warning appears earlier',          costs: [30,60] },
+  storage: { icon: '📦', name: 'Iron Storage', desc: '+75 storage cap per level',             costs: [35,70,140] },
+  chef:    { icon: '🍳', name: 'Master Chef',  desc: 'Food consumption -25% per level',       costs: [20,40] },
+  goldrush:{ icon: '⛏️', name: 'Gold Rush',    desc: 'Mines give +1 gold per level',          costs: [40,80,160] },
+};
+
+const ACHIEVEMENTS = [
+  { id: 'firstlight', icon: '🌅', name: 'First Light',    desc: 'Reach Day 5' },
+  { id: 'survivor',   icon: '❄️', name: 'Storm Survivor', desc: 'Survive your first blizzard' },
+  { id: 'goldrush',   icon: '💰', name: 'Gold Rush',      desc: 'Collect 100 gold total' },
+  { id: 'wellfed',    icon: '🍖', name: 'Well Fed',       desc: 'Collect 150 food total' },
+  { id: 'lumberjack', icon: '🪵', name: 'Lumberjack',     desc: 'Collect 200 wood total' },
+  { id: 'foreman',    icon: '👷', name: 'Foreman',        desc: 'Have 5 workers at once' },
+  { id: 'fortress',   icon: '🏰', name: 'Fortress',       desc: 'Upgrade wall to level 3' },
+  { id: 'eternal',    icon: '🔥', name: 'Eternal Flame',  desc: 'Upgrade hearth to level 4' },
+  { id: 'deepwinter', icon: '❄️❄️', name: 'Deep Winter',  desc: 'Survive 5 storms' },
+  { id: 'veteran',    icon: '🌟', name: 'Veteran',        desc: 'Reach Day 20' },
+];
+
 // ─── Game state ──────────────────────────────────────────────────────────────
 const state = {
   gold: 10, food: 10, wood: 5,
@@ -256,8 +481,15 @@ const state = {
   wallLevel: 1, wallCost: 30,
   fireLevel: 1, fireCost: 20,
   feastCost: 15,
+  storageLevel: 1, storageCost: 25, maxStorage: 100,
+  watchtowerLevel: 1,
   day: 1, dayTimer: 0, DAY_DURATION: 60,
+  timeOfDay: 0,
   storm: false, stormTimer: 0, stormIntensity: 0,
+  stormsTriggered: 0,
+  wallDamage: 0,
+  hunger: 0,
+  raid: false, raidTimer: 0, nextRaidDay: 20,
   snowParticles: [],
   resourceNodes: [],
   floatingTexts: [],
@@ -265,7 +497,17 @@ const state = {
   tick: 0,
   survivalScore: 0,
   totalGold: 0, totalFood: 0, totalWood: 0,
+  research: { swift: 0, strong: 0, sense: 0, storage: 0, chef: 0, goldrush: 0 },
+  achievements: [],
+  prestigeLevel: 0, prestigeBonus: 1,
+  lastSaveTime: Date.now(),
+  workerOrder: 'any',
 };
+
+// ─── Haptics ─────────────────────────────────────────────────────────────────
+function vibrate(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(e) {}
+}
 
 // ─── Iso projection ──────────────────────────────────────────────────────────
 function isoProject(gx, gy) {
@@ -310,6 +552,13 @@ function initResourceNodes() {
 }
 
 // ─── Workers ─────────────────────────────────────────────────────────────────
+function pickName() {
+  const used = new Set(state.workers.map(w => w.name));
+  const free = WORKER_NAMES.filter(n => !used.has(n));
+  if (free.length) return free[Math.floor(Math.random() * free.length)];
+  return WORKER_NAMES[Math.floor(Math.random() * WORKER_NAMES.length)] + ' ' + (state.workers.length + 1);
+}
+
 function createWorker(id) {
   // Spread workers around base so they don't stack on each other
   const angle = (id / 8) * Math.PI * 2 + Math.random() * 0.5;
@@ -320,6 +569,7 @@ function createWorker(id) {
   const p = isoProject(startGx, startGy);
   return {
     id,
+    name: pickName(),
     x: p.x, y: p.y,
     gx: startGx, gy: startGy,
     homeOffset,
@@ -338,9 +588,15 @@ function initWorkers() {
 }
 
 function assignWorker(w) {
-  // Find closest available resource node with stock
-  const available = state.resourceNodes.filter(n => !n.depleted && n.stock > 0);
-  if (!available.length) { w.state = 'idle'; return; }
+  // Don't assign during storm or raid — workers will return home on their own
+  if (state.storm || state.raid) return;
+
+  // Filter by workerOrder (resource type preference)
+  const order = state.workerOrder || 'any';
+  const yieldMap = { gold: 'gold', food: 'food', wood: 'wood' };
+  let available = state.resourceNodes.filter(n => !n.depleted && n.stock > 0);
+  if (order !== 'any') available = available.filter(n => n.yield === yieldMap[order]);
+  if (!available.length) return; // stay idle if no matching nodes
 
   // Prefer nodes not currently targeted by other workers
   const targeted = new Set(state.workers.filter(x => x !== w && x.targetNode !== null).map(x => x.targetNode?.id));
@@ -355,6 +611,15 @@ function assignWorker(w) {
   });
   w.targetNode = pool[0];
   w.state = 'moving';
+}
+
+// Effective speed multiplier from research, night, carry
+function workerSpeedMult(w) {
+  let m = state.prestigeBonus;
+  m *= 1 + 0.15 * state.research.swift;            // Swift Feet
+  if (state.timeOfDay > 0.6) m *= 0.8;             // night slowdown
+  if (w.state === 'returning' && w.carryAmt > 0) m *= 0.65; // carry slowdown
+  return m;
 }
 
 function updateWorker(w, dt) {
@@ -377,7 +642,7 @@ function updateWorker(w, dt) {
       w.state = 'gathering';
       w.gatherTimer = 0;
     } else {
-      const spd = w.speed * (dt / 1000) * 2.2;
+      const spd = w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w);
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
@@ -391,7 +656,9 @@ function updateWorker(w, dt) {
     if (w.gatherTimer > 1800) {
       const node = w.targetNode;
       if (!node || node.depleted || node.stock <= 0) { w.state = 'idle'; w.targetNode = null; return; }
-      const take = Math.min(node.amt, node.stock);
+      let amt = node.amt + state.research.strong; // Strong Back
+      if (node.yield === 'gold') amt += state.research.goldrush; // Gold Rush
+      const take = Math.min(amt, node.stock);
       node.stock -= take;
       if (node.stock <= 0) { node.depleted = true; node.stock = 0; }
       w.carrying = node.yield;
@@ -409,14 +676,22 @@ function updateWorker(w, dt) {
     const dx = tx - w.gx, dy = ty - w.gy;
     const dist = Math.hypot(dx, dy);
     if (dist < 0.18) {
-      state[w.carrying] += w.carryAmt;
-      state['total' + w.carrying.charAt(0).toUpperCase() + w.carrying.slice(1)] += w.carryAmt;
+      if (w.carrying) {
+        const before = state[w.carrying];
+        const added = Math.max(0, Math.min(w.carryAmt, state.maxStorage - before));
+        if (added < w.carryAmt) {
+          spawnFloat('STORAGE FULL', isoProject(BASE_CX, BASE_CY).x, isoProject(BASE_CX, BASE_CY).y - 60);
+        }
+        state[w.carrying] = before + added;
+        state['total' + w.carrying.charAt(0).toUpperCase() + w.carrying.slice(1)] += added;
+        if (added > 0) vibrate(15);
+      }
       w.carrying = null; w.carryAmt = 0;
       w.gx = tx; w.gy = ty;
       w.state = 'idle';
       updateHUD();
     } else {
-      const spd = w.speed * (dt / 1000) * 2.2;
+      const spd = w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w);
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
@@ -457,30 +732,76 @@ function spawnFloat(text, x, y) {
 // ─── Day/night cycle ──────────────────────────────────────────────────────────
 function updateDay(dt) {
   state.dayTimer += dt;
+  state.timeOfDay = state.dayTimer / (state.DAY_DURATION * 60);
   if (state.dayTimer > state.DAY_DURATION * 60) {
     state.dayTimer = 0;
+    state.timeOfDay = 0;
     state.day++;
     document.getElementById('day-num').textContent = state.day;
+    processFeeding();
     saveGame();
-    if (state.day % 5 === 0) triggerStorm();
-    else showToast(`Day ${state.day} begins ❄️`);
+    if (state.day % 5 === 0) {
+      triggerStorm();
+    } else if (state.day >= 20 && state.day >= state.nextRaidDay && Math.random() < 0.15) {
+      triggerRaid();
+    } else {
+      showToast(`Day ${state.day} begins ❄️`);
+    }
     // Regen depleted nodes
     state.resourceNodes.forEach(n => {
       if (n.depleted) { n.depleted = false; n.stock = Math.floor(n.max * 0.6); }
     });
+    checkAchievements();
+    updateHUD();
+  }
+}
+
+// ─── Population / hunger ──────────────────────────────────────────────────────
+function processFeeding() {
+  const consumeMult = 1 - 0.25 * state.research.chef; // Master Chef
+  const needed = Math.ceil(state.workers.length * consumeMult);
+  if (state.food >= needed) {
+    state.food -= needed;
+    state.hunger = Math.max(0, state.hunger - 50);
+  } else {
+    state.food = 0;
+    state.hunger += 25;
+    showToast('⚠️ Not enough food! Workers are starving');
+    if (state.hunger >= 100) {
+      state.hunger = 0;
+      if (state.workers.length > 1) {
+        const lost = state.workers.pop();
+        showToast(`💀 ${lost.name} starved and left the camp`);
+        vibrate([50,30,50]);
+      }
+    }
   }
 }
 
 function triggerStorm() {
   state.storm = true;
   state.stormTimer = 0;
+  state.stormsTriggered++;
+  vibrate([50,30,50]);
   const el = document.getElementById('storm-warning');
   el.style.display = 'block';
   showToast('❄️ Blizzard! Workers shelter now!');
   setTimeout(() => { el.style.display = 'none'; }, 3000);
+
+  // Wall damage accrues
+  const prevDamage = state.wallDamage;
+  state.wallDamage += Math.max(0, 2 - state.wallLevel);
+  // If wall was already crumbling, resources get stolen
+  if (prevDamage >= 3) {
+    const fLost = Math.floor(state.food * 0.2);
+    const wLost = Math.floor(state.wood * 0.2);
+    state.food -= fLost; state.wood -= wLost;
+    if (fLost + wLost > 0) showToast(`🧱 Wall breached! Lost ${fLost}🥩 ${wLost}🪵`);
+  }
+
   // Workers retreat to base during storm
   state.workers.forEach(w => {
-    w.state = 'returning'; w.targetNode = null; w.carrying = null;
+    w.state = 'returning'; w.targetNode = null; w.carrying = null; w.carryAmt = 0;
   });
 }
 
@@ -498,6 +819,41 @@ function updateStorm(dt) {
       showToast('Storm survived! Your base held! 💪');
     }
     state.survivalScore++;
+    checkAchievements();
+    updateHUD();
+  }
+}
+
+// ─── Enemy raids ─────────────────────────────────────────────────────────────
+function triggerRaid() {
+  state.raid = true;
+  state.raidTimer = 0;
+  vibrate([50,30,50]);
+  const el = document.getElementById('raid-warning');
+  el.style.display = 'block';
+  showToast('⚔️ Raiders attacking! Workers retreat!');
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+  state.workers.forEach(w => {
+    w.state = 'returning'; w.targetNode = null; w.carrying = null; w.carryAmt = 0;
+  });
+}
+
+function updateRaid(dt) {
+  if (!state.raid) return;
+  state.raidTimer += dt;
+  if (state.raidTimer > 10000) {
+    state.raid = false;
+    const stealRate = state.wallLevel >= 3 ? 0.05 : state.wallLevel === 2 ? 0.15 : 0.30;
+    const gLost = Math.floor(state.gold * stealRate);
+    const fLost = Math.floor(state.food * stealRate);
+    const wLost = Math.floor(state.wood * stealRate);
+    state.gold -= gLost; state.food -= fLost; state.wood -= wLost;
+    state.nextRaidDay = state.day + 3 + Math.floor(Math.random() * 5);
+    if (gLost + fLost + wLost > 0) {
+      showToast(`Raid over. Stolen: ${gLost}🪙 ${fLost}🥩 ${wLost}🪵`);
+    } else {
+      showToast('Raid repelled! Nothing stolen 🛡️');
+    }
     updateHUD();
   }
 }
@@ -516,15 +872,52 @@ function updateNodes(dt) {
   });
 }
 
+// ─── Sky color by time of day ─────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+function mix(c1, c2, t) {
+  return [Math.round(lerp(c1[0],c2[0],t)), Math.round(lerp(c1[1],c2[1],t)), Math.round(lerp(c1[2],c2[2],t))];
+}
+function skyColors() {
+  // keyframes: dawn(0) -> noon(0.3) -> dusk(0.6) -> night(0.8..1)
+  const t = state.timeOfDay;
+  const dawnTop = [70,40,90], dawnBot = [220,120,70];
+  const noonTop = [40,90,170], noonBot = [120,170,230];
+  const duskTop = [90,40,70], duskBot = [220,90,60];
+  const nightTop = [6,10,28], nightBot = [16,26,55];
+  let top, bot;
+  if (t < 0.3) { const k = t / 0.3; top = mix(dawnTop, noonTop, k); bot = mix(dawnBot, noonBot, k); }
+  else if (t < 0.6) { const k = (t - 0.3) / 0.3; top = mix(noonTop, duskTop, k); bot = mix(noonBot, duskBot, k); }
+  else if (t < 0.8) { const k = (t - 0.6) / 0.2; top = mix(duskTop, nightTop, k); bot = mix(duskBot, nightBot, k); }
+  else { top = nightTop; bot = nightBot; }
+  return { top, bot };
+}
+
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 function drawBackground() {
-  // Sky gradient
+  const sky = skyColors();
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  const stormFactor = state.storm ? 0.6 : 1;
-  grad.addColorStop(0, `rgb(${Math.floor(15 * stormFactor)},${Math.floor(25 * stormFactor)},${Math.floor(55 * stormFactor)})`);
-  grad.addColorStop(1, `rgb(${Math.floor(30 * stormFactor)},${Math.floor(50 * stormFactor)},${Math.floor(90 * stormFactor)})`);
+  const sf = state.storm ? 0.55 : (state.raid ? 0.7 : 1);
+  const rTint = state.raid ? 40 : 0;
+  grad.addColorStop(0, `rgb(${Math.floor(sky.top[0]*sf)+rTint},${Math.floor(sky.top[1]*sf)},${Math.floor(sky.top[2]*sf)})`);
+  grad.addColorStop(1, `rgb(${Math.floor(sky.bot[0]*sf)+rTint},${Math.floor(sky.bot[1]*sf)},${Math.floor(sky.bot[2]*sf)})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Sun / moon arc across sky
+  const t = state.timeOfDay;
+  const sunX = canvas.width * (0.12 + t * 0.76);
+  const arcY = canvas.height * 0.12 + Math.sin(t * Math.PI) * -canvas.height * 0.06 + canvas.height * 0.06;
+  ctx.save();
+  ctx.font = '30px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (t > 0.6) {
+    // Night: moon
+    ctx.globalAlpha = Math.min(1, (t - 0.6) / 0.15);
+    ctx.fillText('🌙', sunX, Math.max(40, arcY));
+  } else {
+    ctx.globalAlpha = 1 - Math.max(0, (t - 0.5)) / 0.1;
+    ctx.fillText('☀️', sunX, Math.max(40, arcY));
+  }
+  ctx.restore();
 }
 
 function drawGrid() {
@@ -554,12 +947,14 @@ function drawIsoTile(x, y, isBase, isCenter) {
   ctx.lineTo(x - hw, y);
   ctx.closePath();
 
+  // Night brightening: snow stays bright at night
+  const night = state.timeOfDay > 0.6;
   if (isCenter) {
-    ctx.fillStyle = '#5a6a80';
+    ctx.fillStyle = night ? '#48566c' : '#5a6a80';
   } else if (isBase) {
-    ctx.fillStyle = '#d4a870'; // sandy/dirt ground inside base
+    ctx.fillStyle = night ? '#a8855a' : '#d4a870'; // sandy/dirt ground inside base
   } else {
-    ctx.fillStyle = '#c8dff0'; // snow
+    ctx.fillStyle = night ? '#aecbe6' : '#c8dff0'; // snow (brighter relative at night)
   }
   ctx.fill();
   ctx.strokeStyle = isBase ? 'rgba(180,140,80,0.3)' : 'rgba(180,210,240,0.4)';
@@ -570,6 +965,8 @@ function drawIsoTile(x, y, isBase, isCenter) {
 function drawWall() {
   // Draw fence/wall around base
   const wallColor = ['', '#8b5e3c', '#7a4a2a', '#5a3a1a'][Math.min(state.wallLevel, 3)];
+  const dmg = state.wallDamage;
+  const flashRed = dmg >= 3 && Math.sin(state.tick * 0.25) > 0;
   const r = 3; // radius of base in grid units
   const wallPosts = [
     [BASE_CX - r, BASE_CY - r], [BASE_CX, BASE_CY - r], [BASE_CX + r, BASE_CY - r],
@@ -587,14 +984,23 @@ function drawWall() {
     ctx.beginPath();
     ctx.moveTo(pa.x, pa.y);
     ctx.lineTo(pb.x, pb.y);
-    ctx.strokeStyle = wallColor;
+    ctx.strokeStyle = flashRed ? '#ff3030' : wallColor;
     ctx.lineWidth = 3 + state.wallLevel;
     ctx.stroke();
+
+    // Damage cracks on segments
+    const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+    if (dmg >= 1) {
+      ctx.strokeStyle = dmg >= 2 ? 'rgba(30,15,5,0.9)' : 'rgba(90,50,20,0.8)';
+      ctx.lineWidth = dmg >= 2 ? 2 : 1.4;
+      ctx.beginPath(); ctx.moveTo(mx - 4, my - 5); ctx.lineTo(mx + 4, my + 5);
+      ctx.moveTo(mx + 4, my - 5); ctx.lineTo(mx - 4, my + 5); ctx.stroke();
+    }
 
     // Wall post
     ctx.beginPath();
     ctx.arc(pa.x, pa.y - 8, 4, 0, Math.PI * 2);
-    ctx.fillStyle = wallColor;
+    ctx.fillStyle = flashRed ? '#ff4040' : wallColor;
     ctx.fill();
   }
 
@@ -688,22 +1094,26 @@ function drawIsoBuilding(x, y, w, h, sideColor, topColor, shadowColor) {
 
 function drawFire(x, y) {
   const t = state.tick;
+  // Night: fire glows 2x brighter
+  const nightBoost = state.timeOfDay > 0.6 ? 2 : 1;
   for (let i = 0; i < 6; i++) {
     const flicker = Math.sin(t * 0.15 + i * 1.1) * 3;
     const h = 8 + i * 2 + flicker;
     ctx.beginPath();
     ctx.arc(x + Math.sin(i * 2.1) * 3, y - h, 2 + i * 0.5, 0, Math.PI * 2);
     ctx.fillStyle = i < 2 ? '#ff4400' : i < 4 ? '#ff8800' : '#ffcc00';
-    ctx.globalAlpha = 0.8 - i * 0.1;
+    ctx.globalAlpha = Math.min(1, (0.8 - i * 0.1));
     ctx.fill();
   }
   ctx.globalAlpha = 1;
   // Glow
-  const grd = ctx.createRadialGradient(x, y, 0, x, y, 18);
-  grd.addColorStop(0, 'rgba(255,120,0,0.25)');
+  const glowR = 18 * nightBoost;
+  const glowA = 0.25 * nightBoost;
+  const grd = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+  grd.addColorStop(0, `rgba(255,120,0,${Math.min(0.6, glowA)})`);
   grd.addColorStop(1, 'rgba(255,120,0,0)');
   ctx.fillStyle = grd;
-  ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawResourceNodes() {
@@ -817,7 +1227,9 @@ function drawWorkers() {
   const sorted = [...state.workers].sort((a, b) => a.y - b.y);
   sorted.forEach(w => {
     const t = state.tick;
-    const bob = Math.sin(t * 0.12 + w.bobOffset) * (w.state === 'idle' ? 0 : 2);
+    const carrying = w.state === 'returning' && w.carryAmt > 0;
+    const amp = w.state === 'idle' ? 0 : (carrying ? 3 : 2);
+    const bob = Math.sin(t * 0.12 + w.bobOffset) * amp;
 
     // Shadow
     ctx.beginPath();
@@ -856,10 +1268,12 @@ function drawWorkers() {
 }
 
 function drawSnow() {
+  const night = state.timeOfDay > 0.6;
   state.snowParticles.forEach(p => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(220,240,255,${p.alpha * (state.storm ? 0.9 : 0.7)})`;
+    const bright = night ? 1 : (state.storm ? 0.9 : 0.7);
+    ctx.fillStyle = `rgba(230,245,255,${p.alpha * bright})`;
     ctx.fill();
   });
 }
@@ -883,6 +1297,17 @@ function drawFloatingTexts() {
 }
 
 function drawStormOverlay() {
+  if (state.raid) {
+    // Red raid overlay
+    const intensity = Math.min(state.raidTimer / 2000, 0.4);
+    ctx.fillStyle = `rgba(180,30,30,${intensity * 0.25})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const vgrd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.3, canvas.width / 2, canvas.height / 2, canvas.height);
+    vgrd.addColorStop(0, 'transparent');
+    vgrd.addColorStop(1, `rgba(200,20,20,${0.45})`);
+    ctx.fillStyle = vgrd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   if (!state.storm) return;
   const intensity = Math.min(state.stormTimer / 120, 0.5);
   ctx.fillStyle = `rgba(200,220,255,${intensity * 0.15})`;
@@ -904,26 +1329,17 @@ function loop(ts) {
 
   updateDay(dt);
   updateStorm(dt);
+  updateRaid(dt);
   updateSnow(dt);
   updateNodes(dt);
-  if (!state.storm) {
-    state.workers.forEach(w => updateWorker(w, dt));
-  }
+  // Always update workers — storm/raid just blocks new assignments (via assignWorker guard)
+  state.workers.forEach(w => updateWorker(w, dt));
 
   // Draw everything in iso order
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
   drawGrid();
   drawWall();
-
-  // Collect all drawables and sort by iso depth
-  const drawCalls = [];
-  state.resourceNodes.filter(n => !n.depleted).forEach(n => {
-    const p = isoProject(n.gx, n.gy);
-    drawCalls.push({ depth: n.gx + n.gy, fn: () => { /* already handles self */ } });
-  });
-
-  // Draw buildings
   drawBuildings();
   drawResourceNodes();
   drawWorkers();
@@ -932,15 +1348,73 @@ function loop(ts) {
   drawStormOverlay();
 
   updateHUDButtons();
+  updateStormBar();
   requestAnimationFrame(loop);
+}
+
+// ─── Storm countdown bar ───────────────────────────────────────────────────────
+function updateStormBar() {
+  const nextStorm = Math.ceil((state.day + 0.0001) / 5) * 5;
+  const daysLeft = nextStorm - state.day;
+  // total seconds until storm = remaining current day + full days after
+  const totalRemain = (daysLeft) * state.DAY_DURATION - state.timeOfDay * state.DAY_DURATION + state.DAY_DURATION;
+  // ratio of progress toward storm within a 5-day window
+  const windowSpan = 5 * state.DAY_DURATION;
+  const elapsed = ((state.day - 1) % 5 + state.timeOfDay) * state.DAY_DURATION;
+  const ratio = Math.min(1, elapsed / windowSpan); // 0 just after storm -> 1 at storm
+  const remainPct = 1 - ratio;
+  const bar = document.getElementById('storm-bar');
+  bar.style.width = (remainPct * 100).toFixed(1) + '%';
+  let col;
+  if (remainPct > 0.5) col = '#44dd66';
+  else if (remainPct > 0.2) col = '#ffcc33';
+  else col = '#ff4444';
+  bar.style.background = col;
+
+  // Storm Sense research makes the warning appear earlier
+  const warnThreshold = 0.2 + 0.12 * state.research.sense;
+  const soon = document.getElementById('storm-soon');
+  if (state.watchtowerLevel >= 1 && remainPct < warnThreshold) {
+    soon.style.display = 'block';
+  } else {
+    soon.style.display = 'none';
+  }
 }
 
 // ─── HUD ──────────────────────────────────────────────────────────────────────
 function updateHUD() {
-  document.getElementById('r-gold').textContent = state.gold;
-  document.getElementById('r-food').textContent = state.food;
-  document.getElementById('r-wood').textContent = state.wood;
+  document.getElementById('r-gold').textContent = Math.floor(state.gold);
+  document.getElementById('r-food').textContent = Math.floor(state.food);
+  document.getElementById('r-wood').textContent = Math.floor(state.wood);
   document.getElementById('r-workers').textContent = state.workers.length;
+
+  // Hunger bar
+  const hwrap = document.getElementById('hunger-wrap');
+  const hlabel = document.getElementById('hunger-label');
+  if (state.hunger > 0) {
+    hwrap.style.display = 'block';
+    hlabel.style.display = 'block';
+    document.getElementById('hunger-bar').style.width = Math.min(100, state.hunger) + '%';
+  } else {
+    hwrap.style.display = 'none';
+    hlabel.style.display = 'none';
+  }
+
+  // Season badge
+  const badge = document.getElementById('season-badge');
+  if (state.prestigeLevel > 0) {
+    badge.style.display = 'inline-block';
+    badge.textContent = 'Season ' + (state.prestigeLevel + 1);
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Prestige CTA
+  const cta = document.getElementById('season-cta');
+  if (state.day >= 30 && state.survivalScore >= 3) cta.style.display = 'block';
+  else cta.style.display = 'none';
+
+  checkAchievements();
   saveGame();
 }
 
@@ -952,8 +1426,43 @@ function updateHUDButtons() {
   document.getElementById('btn-wall').className = 'btn' + (state.wood < state.wallCost ? ' disabled' : '');
   document.getElementById('fire-cost').textContent = '🪵' + state.fireCost;
   document.getElementById('btn-fire').className = 'btn' + (state.wood < state.fireCost ? ' disabled' : '');
+  document.getElementById('storage-cost').textContent = '🪵' + state.storageCost;
+  document.getElementById('btn-storage').className = 'btn' + (state.wood < state.storageCost ? ' disabled' : '');
   document.getElementById('feast-cost').textContent = '🥩' + state.feastCost;
   document.getElementById('btn-feast').className = 'btn' + (state.food < state.feastCost ? ' disabled' : '');
+
+  // Repair button
+  const rbtn = document.getElementById('btn-repair');
+  if (state.wallDamage > 0) {
+    const cost = state.wallDamage * 15;
+    rbtn.style.display = 'block';
+    document.getElementById('repair-cost').textContent = '🪵' + cost;
+    rbtn.className = 'btn repair' + (state.wood < cost ? ' disabled' : '');
+  } else {
+    rbtn.style.display = 'none';
+  }
+}
+
+// ─── Achievements ─────────────────────────────────────────────────────────────
+function unlock(id) {
+  if (state.achievements.includes(id)) return;
+  state.achievements.push(id);
+  const def = ACHIEVEMENTS.find(a => a.id === id);
+  showToast('🏆 Achievement: ' + def.name + '!');
+  vibrate(100);
+  saveGame();
+}
+function checkAchievements() {
+  if (state.day >= 5) unlock('firstlight');
+  if (state.survivalScore >= 1) unlock('survivor');
+  if (state.totalGold >= 100) unlock('goldrush');
+  if (state.totalFood >= 150) unlock('wellfed');
+  if (state.totalWood >= 200) unlock('lumberjack');
+  if (state.workers.length >= 5) unlock('foreman');
+  if (state.wallLevel >= 3) unlock('fortress');
+  if (state.fireLevel >= 4) unlock('eternal');
+  if (state.survivalScore >= 5) unlock('deepwinter');
+  if (state.day >= 20) unlock('veteran');
 }
 
 // ─── Button actions ───────────────────────────────────────────────────────────
@@ -967,7 +1476,8 @@ function buyWorker() {
   const p = isoProject(w.gx, w.gy);
   w.x = p.x; w.y = p.y;
   state.workers.push(w);
-  showToast('New worker hired! 👷');
+  showToast('New worker hired: ' + w.name + ' 👷');
+  vibrate(30);
   updateHUD();
 }
 
@@ -977,6 +1487,7 @@ function upgradeWall() {
   state.wallLevel = Math.min(3, state.wallLevel + 1);
   state.wallCost = Math.floor(state.wallCost * 1.8);
   showToast(`Wall upgraded to level ${state.wallLevel}! 🧱`);
+  vibrate(30);
   updateHUD();
 }
 
@@ -986,6 +1497,29 @@ function upgradeFire() {
   state.fireLevel = Math.min(5, state.fireLevel + 1);
   state.fireCost = Math.floor(state.fireCost * 1.6);
   showToast(`Hearth upgraded! Level ${state.fireLevel} 🔥`);
+  vibrate(30);
+  updateHUD();
+}
+
+function upgradeStorage() {
+  if (state.wood < state.storageCost) return showToast('Need more wood 🪵');
+  state.wood -= state.storageCost;
+  state.storageLevel++;
+  state.maxStorage += 75;
+  state.storageCost = Math.floor(state.storageCost * 1.7);
+  showToast(`Storage expanded! Cap ${state.maxStorage} 📦`);
+  vibrate(30);
+  updateHUD();
+}
+
+function repairWall() {
+  const cost = state.wallDamage * 15;
+  if (state.wallDamage <= 0) return;
+  if (state.wood < cost) return showToast('Need more wood 🪵');
+  state.wood -= cost;
+  state.wallDamage = 0;
+  showToast('Wall repaired! 🔨');
+  vibrate(30);
   updateHUD();
 }
 
@@ -996,19 +1530,97 @@ function feast() {
   state.workers.forEach(w => { w.speed += 0.3; });
   spawnFloat('⚡ Workers energized!', canvas.width / 2, canvas.height / 2);
   showToast('Feast! Workers move faster ⚡');
+  vibrate(30);
   updateHUD();
 }
 
+// ─── Worker order ─────────────────────────────────────────────────────────────
+function setOrder(type) {
+  state.workerOrder = type;
+  ['any','gold','food','wood'].forEach(t => {
+    const el = document.getElementById('order-' + t);
+    if (el) el.classList.toggle('active', t === type);
+  });
+  // Kick idle workers immediately so they respect the new order
+  state.workers.forEach(w => { if (w.state === 'idle') assignWorker(w); });
+  saveGame();
+}
+
+// ─── Research ─────────────────────────────────────────────────────────────────
+function buyResearch(key) {
+  const def = RESEARCH_DEFS[key];
+  const lvl = state.research[key];
+  if (lvl >= def.costs.length) return;
+  const cost = def.costs[lvl];
+  if (state.gold < cost) { showToast('Need ' + cost + ' gold 🪙'); return; }
+  state.gold -= cost;
+  state.research[key]++;
+  // Iron Storage immediately raises cap
+  if (key === 'storage') state.maxStorage += 75;
+  showToast(def.icon + ' ' + def.name + ' Lv.' + state.research[key] + '!');
+  vibrate(30);
+  updateHUD();
+  renderResearch();
+}
+
+function renderResearch() {
+  document.getElementById('research-gold').textContent = Math.floor(state.gold) + ' 🪙';
+  const list = document.getElementById('research-list');
+  list.innerHTML = Object.keys(RESEARCH_DEFS).map(key => {
+    const def = RESEARCH_DEFS[key];
+    const lvl = state.research[key];
+    const maxLvl = def.costs.length;
+    const maxed = lvl >= maxLvl;
+    const cost = maxed ? null : def.costs[lvl];
+    const afford = !maxed && state.gold >= cost;
+    const pips = Array.from({length: maxLvl}, (_, i) => `<div class="rc-pip${i < lvl ? ' on' : ''}"></div>`).join('');
+    const costBox = maxed ? `<div class="rc-cost maxed">MAX</div>` : `<div class="rc-cost">${cost}🪙</div>`;
+    const cls = 'research-card' + (maxed ? ' maxed' : (afford ? '' : ' locked'));
+    const onclick = maxed ? '' : `onclick="buyResearch('${key}')"`;
+    return `<div class="${cls}" ${onclick}>
+      <div class="rc-icon">${def.icon}</div>
+      <div class="rc-mid">
+        <div class="rc-name">${def.name} <span style="color:rgba(180,210,255,0.6);font-weight:600;font-size:11px;">Lv.${lvl}/${maxLvl}</span></div>
+        <div class="rc-desc">${def.desc}</div>
+        <div class="rc-lvl">${pips}</div>
+      </div>
+      ${costBox}
+    </div>`;
+  }).join('');
+}
+
+function openResearch() { renderResearch(); document.getElementById('research-overlay').classList.add('show'); }
+
+// ─── Achievements panel ───────────────────────────────────────────────────────
+function renderAchievements() {
+  document.getElementById('ach-count').textContent = state.achievements.length;
+  const list = document.getElementById('ach-list');
+  list.innerHTML = ACHIEVEMENTS.map(a => {
+    const got = state.achievements.includes(a.id);
+    return `<div class="ach-card${got ? ' unlocked' : ''}">
+      <div class="ach-ico">${a.icon}</div>
+      <div class="ach-mid">
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
+      </div>
+      <div class="ach-check">${got ? '✓' : '🔒'}</div>
+    </div>`;
+  }).join('');
+}
+function openAchievements() { renderAchievements(); document.getElementById('ach-overlay').classList.add('show'); }
+
 // ─── Stats panel ─────────────────────────────────────────────────────────────
 function openStats() {
-  const nextStorm = Math.ceil(state.day / 5) * 5;
+  const nextStorm = Math.ceil((state.day + 0.0001) / 5) * 5;
   document.getElementById('st-day').textContent = state.day;
   document.getElementById('st-storms').textContent = state.survivalScore;
   document.getElementById('st-next-storm').textContent = nextStorm;
-  document.getElementById('st-tgold').textContent = state.totalGold;
-  document.getElementById('st-tfood').textContent = state.totalFood;
-  document.getElementById('st-twood').textContent = state.totalWood;
+  document.getElementById('st-tgold').textContent = Math.floor(state.totalGold);
+  document.getElementById('st-tfood').textContent = Math.floor(state.totalFood);
+  document.getElementById('st-twood').textContent = Math.floor(state.totalWood);
   document.getElementById('st-wcount').textContent = state.workers.length;
+  document.getElementById('st-storage').textContent = state.maxStorage;
+  document.getElementById('st-walldmg').textContent = state.wallDamage + ' / 3';
 
   // Wall stars (max 3)
   const wallEl = document.getElementById('st-wall-stars');
@@ -1018,9 +1630,18 @@ function openStats() {
   const fireEl = document.getElementById('st-fire-stars');
   fireEl.innerHTML = [1,2,3,4,5].map(i => `<span class="star${i <= state.fireLevel ? ' on' : ''}">🔥</span>`).join('');
 
-  // Worker dots
-  const dotsEl = document.getElementById('st-wdots');
-  dotsEl.innerHTML = state.workers.map(w => `<div class="w-dot ${w.state}" title="${w.state}"></div>`).join('');
+  // Worker name rows
+  const rowsEl = document.getElementById('st-wrows');
+  rowsEl.innerHTML = state.workers.map(w =>
+    `<div class="w-row"><div class="w-dot ${w.state}"></div>${w.name}<span class="w-state-txt">${w.state}</span></div>`
+  ).join('');
+
+  // Achievement badges
+  const badgesEl = document.getElementById('st-ach-badges');
+  const earned = ACHIEVEMENTS.filter(a => state.achievements.includes(a.id));
+  badgesEl.innerHTML = earned.length
+    ? earned.map(a => `<span style="font-size:22px;filter:drop-shadow(0 0 6px rgba(255,200,60,0.8));" title="${a.name}">${a.icon}</span>`).join('')
+    : '<span style="color:rgba(180,210,255,0.5);font-size:12px;">None yet — keep playing!</span>';
 
   // Storm protection
   const prot = Math.min(100, (state.wallLevel * 2 + state.fireLevel * 2) * 10);
@@ -1029,12 +1650,62 @@ function openStats() {
   document.getElementById('stats-overlay').classList.add('show');
 }
 
-function closeStats() {
-  document.getElementById('stats-overlay').classList.remove('show');
+function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
+function closeBg(e, id) { if (e.target === document.getElementById(id)) closeOverlay(id); }
+
+// ─── Generic modal ────────────────────────────────────────────────────────────
+function showModal(title, bodyHtml, actions) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const actEl = document.getElementById('modal-actions');
+  actEl.innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'modal-btn ' + (a.kind || 'primary');
+    b.textContent = a.label;
+    b.onclick = () => { closeModal(); a.onClick && a.onClick(); };
+    actEl.appendChild(b);
+  });
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+// ─── Prestige / Seasons ───────────────────────────────────────────────────────
+function confirmPrestige() {
+  if (!(state.day >= 30 && state.survivalScore >= 3)) return;
+  showModal('🌟 New Season',
+    `Winter deepens. Start <b>Season ${state.prestigeLevel + 2}</b>?<br><br>` +
+    `You keep: <b>all research</b>.<br>` +
+    `You earn: <b>+10% permanent gathering bonus</b>.<br>` +
+    `You lose: resources, workers (keep 3), buildings reset.`,
+    [
+      { label: 'Cancel', kind: 'secondary' },
+      { label: 'Begin Season', kind: 'primary', onClick: doPrestige },
+    ]);
 }
 
-function closeStatsIfBg(e) {
-  if (e.target === document.getElementById('stats-overlay')) closeStats();
+function doPrestige() {
+  state.prestigeLevel++;
+  state.prestigeBonus *= 1.10;
+  state.gold = 10; state.food = 10; state.wood = 5;
+  state.workerCost = 20;
+  state.wallLevel = 1; state.wallCost = 30;
+  state.fireLevel = 1; state.fireCost = 20;
+  state.storageLevel = 1; state.storageCost = 25;
+  // Storage cap = base 100 + research bonus
+  state.maxStorage = 100 + 75 * state.research.storage;
+  state.wallDamage = 0; state.hunger = 0;
+  state.day = 1; state.dayTimer = 0; state.timeOfDay = 0;
+  state.survivalScore = 0; state.stormsTriggered = 0;
+  state.storm = false; state.raid = false; state.nextRaidDay = 20;
+  // Reset to 3 workers
+  state.workers = [];
+  for (let i = 0; i < 3; i++) state.workers.push(createWorker(i));
+  initResourceNodes();
+  document.getElementById('day-num').textContent = state.day;
+  showToast(`🌟 Season ${state.prestigeLevel + 1} begins! +${Math.round((state.prestigeBonus-1)*100)}% gathering`);
+  vibrate([50,30,50]);
+  updateHUD();
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -1062,7 +1733,7 @@ canvas.addEventListener('touchstart', e => {
       if (idle) {
         idle.targetNode = n;
         idle.state = 'moving';
-        showToast('Worker dispatched! 👷');
+        showToast(idle.name + ' dispatched! 👷');
       }
     }
   });
@@ -1093,40 +1764,48 @@ const SAVE_KEY = 'frostSurvival_v1';
 
 function saveGame() {
   try {
+    state.lastSaveTime = Date.now();
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       gold: state.gold, food: state.food, wood: state.wood,
       workerCount: state.workers.length, workerCost: state.workerCost,
+      workerNames: state.workers.map(w => w.name),
       wallLevel: state.wallLevel, wallCost: state.wallCost,
       fireLevel: state.fireLevel, fireCost: state.fireCost,
-      day: state.day, survivalScore: state.survivalScore,
+      storageLevel: state.storageLevel, storageCost: state.storageCost, maxStorage: state.maxStorage,
+      watchtowerLevel: state.watchtowerLevel,
+      day: state.day, survivalScore: state.survivalScore, stormsTriggered: state.stormsTriggered,
       totalGold: state.totalGold, totalFood: state.totalFood, totalWood: state.totalWood,
+      hunger: state.hunger, wallDamage: state.wallDamage, nextRaidDay: state.nextRaidDay,
+      research: state.research, achievements: state.achievements,
+      prestigeLevel: state.prestigeLevel, prestigeBonus: state.prestigeBonus,
+      lastSaveTime: state.lastSaveTime,
+      workerOrder: state.workerOrder,
     }));
   } catch(e) {}
 }
 
-function loadGame() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
-    state.gold = s.gold ?? 10;
-    state.food = s.food ?? 10;
-    state.wood = s.wood ?? 5;
-    state.workerCost = s.workerCost ?? 20;
-    state.wallLevel = s.wallLevel ?? 1;
-    state.wallCost = s.wallCost ?? 30;
-    state.fireLevel = s.fireLevel ?? 1;
-    state.fireCost = s.fireCost ?? 20;
-    state.day = s.day ?? 1;
-    state.survivalScore = s.survivalScore ?? 0;
-    state.totalGold = s.totalGold ?? 0;
-    state.totalFood = s.totalFood ?? 0;
-    state.totalWood = s.totalWood ?? 0;
-    document.getElementById('day-num').textContent = state.day;
-    const extra = Math.max(0, (s.workerCount ?? 3) - 3);
-    for (let i = 0; i < extra; i++) state.workers.push(createWorker(3 + i));
-    return true;
-  } catch(e) { return false; }
+// ─── Offline progress ─────────────────────────────────────────────────────────
+function applyOfflineProgress(s) {
+  if (!s || !s.lastSaveTime) return;
+  const elapsed = (Date.now() - s.lastSaveTime) / 1000; // seconds
+  if (elapsed <= 30) return;
+  const workerCount = Math.max(1, s.workerCount ?? 3);
+  const bonus = s.prestigeBonus ?? 1;
+  const totalGain = workerCount * 0.8 * elapsed * bonus;
+  const per = totalGain / 3;
+  const addCap = (cur, add) => Math.min(state.maxStorage, cur + add);
+  const beforeG = state.gold, beforeF = state.food, beforeW = state.wood;
+  state.gold = addCap(state.gold, per);
+  state.food = addCap(state.food, per);
+  state.wood = addCap(state.wood, per);
+  const g = Math.floor(state.gold - beforeG), f = Math.floor(state.food - beforeF), w = Math.floor(state.wood - beforeW);
+  state.gold = Math.floor(state.gold); state.food = Math.floor(state.food); state.wood = Math.floor(state.wood);
+  state.totalGold += g; state.totalFood += f; state.totalWood += w;
+  const mins = Math.max(1, Math.round(elapsed / 60));
+  showModal('🏕️ Welcome Back!',
+    `You were gone <b>${mins} minute${mins === 1 ? '' : 's'}</b>.<br><br>Your workers collected:<br><br>` +
+    `<b>+${g}🪙 &nbsp; +${f}🥩 &nbsp; +${w}🪵</b>`,
+    [{ label: 'OK', kind: 'primary' }]);
 }
 
 // Auto-save every 5 seconds and on any hide/close
@@ -1138,25 +1817,55 @@ window.addEventListener('beforeunload', saveGame);
 // ─── Init ─────────────────────────────────────────────────────────────────────
 initResourceNodes();
 initSnow();
-// Load before initWorkers so saved worker count is known
+
 const _save = (() => {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch(e) { return null; }
 })();
+
 if (_save) {
   state.gold = _save.gold ?? 10; state.food = _save.food ?? 10; state.wood = _save.wood ?? 5;
   state.workerCost = _save.workerCost ?? 20;
   state.wallLevel = _save.wallLevel ?? 1; state.wallCost = _save.wallCost ?? 30;
   state.fireLevel = _save.fireLevel ?? 1; state.fireCost = _save.fireCost ?? 20;
+  state.storageLevel = _save.storageLevel ?? 1; state.storageCost = _save.storageCost ?? 25;
+  state.maxStorage = _save.maxStorage ?? 100;
+  state.watchtowerLevel = _save.watchtowerLevel ?? 1;
   state.day = _save.day ?? 1; state.survivalScore = _save.survivalScore ?? 0;
+  state.stormsTriggered = _save.stormsTriggered ?? 0;
   state.totalGold = _save.totalGold ?? 0; state.totalFood = _save.totalFood ?? 0; state.totalWood = _save.totalWood ?? 0;
+  state.hunger = _save.hunger ?? 0;
+  state.wallDamage = _save.wallDamage ?? 0;
+  state.nextRaidDay = _save.nextRaidDay ?? 20;
+  if (_save.research) Object.assign(state.research, _save.research);
+  state.achievements = Array.isArray(_save.achievements) ? _save.achievements.slice() : [];
+  state.prestigeLevel = _save.prestigeLevel ?? 0;
+  state.prestigeBonus = _save.prestigeBonus ?? 1;
+  state.workerOrder = _save.workerOrder ?? 'any';
   document.getElementById('day-num').textContent = state.day;
+  // Restore order button active state
+  ['any','gold','food','wood'].forEach(t => {
+    const el = document.getElementById('order-' + t);
+    if (el) el.classList.toggle('active', t === state.workerOrder);
+  });
 }
-const savedWorkerCount = _save ? Math.max(3, Math.min(_save.workerCount ?? 3, 12)) : 3;
-for (let i = 0; i < savedWorkerCount; i++) state.workers.push(createWorker(i));
+
+// Create workers, restoring saved names where possible
+const savedWorkerCount = _save ? Math.max(3, Math.min(_save.workerCount ?? 3, 20)) : 3;
+const savedNames = (_save && Array.isArray(_save.workerNames)) ? _save.workerNames : [];
+for (let i = 0; i < savedWorkerCount; i++) {
+  const w = createWorker(i);
+  if (savedNames[i]) w.name = savedNames[i];
+  state.workers.push(w);
+}
+
+// Offline progress (after workers/state restored)
+applyOfflineProgress(_save);
+
 updateHUD();
+checkAchievements();
 showToast(_save ? `Welcome back! Day ${state.day} ❄️` : 'Survive the frost! ❄️ Tap nodes to send workers');
 requestAnimationFrame(loop);
 </script>
