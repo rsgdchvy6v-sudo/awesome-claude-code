@@ -9,7 +9,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0a1628; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
-  #canvas { display: block; touch-action: none; }
+  #canvas { display: block; touch-action: none; width: 100dvw; height: 100dvh; }
   #hud {
     position: fixed; top: 0; left: 0; right: 0;
     padding: env(safe-area-inset-top, 12px) 12px 8px;
@@ -437,15 +437,24 @@
 
 <script>
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 
 // ─── Responsive canvas ───────────────────────────────────────────────────────
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  // clientWidth/Height is more reliable than innerWidth/Height on iOS Safari
+  const w = document.documentElement.clientWidth || window.innerWidth || 375;
+  const h = document.documentElement.clientHeight || window.innerHeight || 667;
+  canvas.width = w;
+  canvas.height = h;
+  // Re-acquire context after resize in case iOS invalidated it
+  ctx = canvas.getContext('2d');
 }
 resize();
 window.addEventListener('resize', resize);
+// iOS fires visualviewport resize when address bar shows/hides
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TW = 52, TH = 26; // isometric tile width/height
@@ -1335,6 +1344,10 @@ function loop(ts) {
   requestAnimationFrame(loop);
 
   try {
+    // Re-acquire context if iOS invalidated it
+    if (!ctx) ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     const dt = Math.min(ts - lastTime, 50);
     lastTime = ts;
     state.tick++;
