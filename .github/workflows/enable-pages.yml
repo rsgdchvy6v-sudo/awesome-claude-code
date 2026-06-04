@@ -3,10 +3,7 @@ name: Enable GitHub Pages
 on:
   workflow_dispatch:
 
-permissions:
-  pages: write
-  contents: read
-  administration: write
+permissions: write-all
 
 jobs:
   enable-pages:
@@ -15,15 +12,16 @@ jobs:
       - name: Enable GitHub Pages
         run: |
           echo "Enabling GitHub Pages from gh-pages branch..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${{ github.repository }}/pages \
             -d '{"source":{"branch":"gh-pages","path":"/"}}')
-          echo "POST response: $RESPONSE"
-          if [ "$RESPONSE" = "409" ]; then
-            echo "Pages already exists, updating source..."
+          echo "$RESPONSE"
+          HTTP=$(echo "$RESPONSE" | tail -1)
+          if [ "$HTTP" = "409" ]; then
+            echo "Pages exists, updating to gh-pages branch..."
             curl -s -X PUT \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
@@ -31,4 +29,4 @@ jobs:
               https://api.github.com/repos/${{ github.repository }}/pages \
               -d '{"source":{"branch":"gh-pages","path":"/"}}'
           fi
-          echo "Done! Game will be live at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "Game URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
