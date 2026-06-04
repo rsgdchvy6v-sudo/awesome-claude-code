@@ -57,10 +57,21 @@
   #toast.show { opacity: 1; }
   #day-counter {
     position: fixed; top: calc(env(safe-area-inset-top, 12px) + 6px); right: 14px;
+    display: flex; align-items: center; gap: 8px; z-index: 11;
+  }
+  #day-label {
     color: rgba(200,220,255,0.9); font-size: 12px; font-weight: 700;
     background: rgba(0,0,0,0.3); border-radius: 10px; padding: 4px 10px;
-    pointer-events: none; z-index: 11;
+    pointer-events: none;
   }
+  #stats-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer; -webkit-user-select: none; user-select: none;
+  }
+  #stats-btn:active { background: rgba(255,255,255,0.3); }
   #storm-warning {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: rgba(180, 40, 40, 0.95); backdrop-filter: blur(12px);
@@ -147,13 +158,15 @@
     <div class="res-pill"><span class="res-icon">👷</span><span id="r-workers">3</span></div>
   </div>
 </div>
-<div id="day-counter">Day <span id="day-num">1</span></div>
+<div id="day-counter">
+  <div id="day-label">Day <span id="day-num">1</span></div>
+  <div id="stats-btn" onclick="openStats()">📊</div>
+</div>
 <div id="bottom-bar">
   <div class="btn" id="btn-worker" onclick="buyWorker()"><span class="btn-icon">👷</span>Worker<br><span id="worker-cost" style="color:#adf">🪙20</span></div>
   <div class="btn" id="btn-wall" onclick="upgradeWall()"><span class="btn-icon">🧱</span>Wall<br><span id="wall-cost" style="color:#adf">🪵30</span></div>
   <div class="btn" id="btn-fire" onclick="upgradeFire()"><span class="btn-icon">🔥</span>Hearth<br><span id="fire-cost" style="color:#adf">🪵20</span></div>
   <div class="btn" id="btn-feast" onclick="feast()"><span class="btn-icon">🍖</span>Feast<br><span id="feast-cost" style="color:#adf">🥩15</span></div>
-  <div class="btn" onclick="openStats()"><span class="btn-icon">📊</span>Stats<br><span style="color:#adf">Info</span></div>
 </div>
 <div id="toast"></div>
 <div id="storm-warning">🌨️ BLIZZARD INCOMING! 🌨️<br><small style="font-size:14px;font-weight:500">Survive the storm!</small></div>
@@ -223,7 +236,7 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-// ─── Responsive canvas ────────────────────────────────────────────────
+// ─── Responsive canvas ───────────────────────────────────────────────────────
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -231,12 +244,12 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// ─── Constants ────────────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 const TW = 52, TH = 26; // isometric tile width/height
 const GRID_COLS = 14, GRID_ROWS = 14;
 const BASE_CX = 7, BASE_CY = 7; // base center in grid
 
-// ─── Game state ───────────────────────────────────────────────────────────────────
+// ─── Game state ──────────────────────────────────────────────────────────────
 const state = {
   gold: 10, food: 10, wood: 5,
   workers: [], workerCost: 20,
@@ -254,7 +267,7 @@ const state = {
   totalGold: 0, totalFood: 0, totalWood: 0,
 };
 
-// ─── Iso projection ────────────────────────────────────────────────────────────────
+// ─── Iso projection ──────────────────────────────────────────────────────────
 function isoProject(gx, gy) {
   const sx = canvas.width / 2 + state.cameraX;
   const sy = canvas.height * 0.38 + state.cameraY;
@@ -264,7 +277,7 @@ function isoProject(gx, gy) {
   };
 }
 
-// ─── Resource nodes ───────────────────────────────────────────────────────────────
+// ─── Resource nodes ──────────────────────────────────────────────────────────
 function initResourceNodes() {
   state.resourceNodes = [];
   const types = [
@@ -296,7 +309,7 @@ function initResourceNodes() {
   }
 }
 
-// ─── Workers ────────────────────────────────────────────────────────────────────────
+// ─── Workers ─────────────────────────────────────────────────────────────────
 function createWorker(id) {
   // Spread workers around base so they don't stack on each other
   const angle = (id / 8) * Math.PI * 2 + Math.random() * 0.5;
@@ -411,7 +424,7 @@ function updateWorker(w, dt) {
   }
 }
 
-// ─── Snow particles ───────────────────────────────────────────────────────────────────
+// ─── Snow particles ───────────────────────────────────────────────────────────
 function initSnow() {
   for (let i = 0; i < 80; i++) spawnSnow();
 }
@@ -436,12 +449,12 @@ function updateSnow(dt) {
   });
 }
 
-// ─── Floating texts ───────────────────────────────────────────────────────────────────
+// ─── Floating texts ───────────────────────────────────────────────────────────
 function spawnFloat(text, x, y) {
   state.floatingTexts.push({ text, x, y, life: 90, alpha: 1 });
 }
 
-// ─── Day/night cycle ──────────────────────────────────────────────────────────────────
+// ─── Day/night cycle ──────────────────────────────────────────────────────────
 function updateDay(dt) {
   state.dayTimer += dt;
   if (state.dayTimer > state.DAY_DURATION * 60) {
@@ -489,7 +502,7 @@ function updateStorm(dt) {
   }
 }
 
-// ─── Regen resource nodes ───────────────────────────────────────────────────────────────────
+// ─── Regen resource nodes ─────────────────────────────────────────────────────
 function updateNodes(dt) {
   state.resourceNodes.forEach(n => {
     if (n.stock < n.max) {
@@ -503,7 +516,7 @@ function updateNodes(dt) {
   });
 }
 
-// ─── Drawing ───────────────────────────────────────────────────────────────────────────
+// ─── Drawing ─────────────────────────────────────────────────────────────────
 function drawBackground() {
   // Sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -882,7 +895,7 @@ function drawStormOverlay() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-// ─── Main loop ────────────────────────────────────────────────────────────────────────────
+// ─── Main loop ────────────────────────────────────────────────────────────────
 let lastTime = 0;
 function loop(ts) {
   const dt = Math.min(ts - lastTime, 50);
@@ -922,7 +935,7 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-// ─── HUD ──────────────────────────────────────────────────────────────────────────────
+// ─── HUD ──────────────────────────────────────────────────────────────────────
 function updateHUD() {
   document.getElementById('r-gold').textContent = state.gold;
   document.getElementById('r-food').textContent = state.food;
@@ -943,7 +956,7 @@ function updateHUDButtons() {
   document.getElementById('btn-feast').className = 'btn' + (state.food < state.feastCost ? ' disabled' : '');
 }
 
-// ─── Button actions ───────────────────────────────────────────────────────────────────
+// ─── Button actions ───────────────────────────────────────────────────────────
 function buyWorker() {
   if (state.gold < state.workerCost) return showToast('Need more gold 🪙');
   state.gold -= state.workerCost;
@@ -986,7 +999,7 @@ function feast() {
   updateHUD();
 }
 
-// ─── Stats panel ─────────────────────────────────────────────────────────────────────────
+// ─── Stats panel ─────────────────────────────────────────────────────────────
 function openStats() {
   const nextStorm = Math.ceil(state.day / 5) * 5;
   document.getElementById('st-day').textContent = state.day;
@@ -999,7 +1012,7 @@ function openStats() {
 
   // Wall stars (max 3)
   const wallEl = document.getElementById('st-wall-stars');
-  wallEl.innerHTML = [1,2,3].map(i => `<span class="star${i <= state.wallLevel ? ' on' : ''}">&#11088;</span>`).join('');
+  wallEl.innerHTML = [1,2,3].map(i => `<span class="star${i <= state.wallLevel ? ' on' : ''}">⭐</span>`).join('');
 
   // Fire stars (max 5)
   const fireEl = document.getElementById('st-fire-stars');
@@ -1024,7 +1037,7 @@ function closeStatsIfBg(e) {
   if (e.target === document.getElementById('stats-overlay')) closeStats();
 }
 
-// ─── Toast ──────────────────────────────────────────────────────────────────────────────────
+// ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg) {
   const el = document.getElementById('toast');
@@ -1034,7 +1047,7 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-// ─── Touch/tap on canvas ──────────────────────────────────────────────────────────────────
+// ─── Touch/tap on canvas ──────────────────────────────────────────────────────
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   const touch = e.touches[0];
@@ -1055,7 +1068,7 @@ canvas.addEventListener('touchstart', e => {
   });
 }, { passive: false });
 
-// ─── Camera pan ─────────────────────────────────────────────────────────────────────────────
+// ─── Camera pan ───────────────────────────────────────────────────────────────
 let lastTouch = null;
 canvas.addEventListener('touchmove', e => {
   if (e.touches.length === 2) {
@@ -1075,7 +1088,7 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', () => { lastTouch = null; });
 
-// ─── Save / Load ──────────────────────────────────────────────────────────────────────────────
+// ─── Save / Load ──────────────────────────────────────────────────────────────
 const SAVE_KEY = 'frostSurvival_v1';
 
 function saveGame() {
@@ -1122,7 +1135,7 @@ document.addEventListener('visibilitychange', saveGame);
 window.addEventListener('pagehide', saveGame);
 window.addEventListener('beforeunload', saveGame);
 
-// ─── Init ──────────────────────────────────────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────────────────
 initResourceNodes();
 initSnow();
 // Load before initWorkers so saved worker count is known
