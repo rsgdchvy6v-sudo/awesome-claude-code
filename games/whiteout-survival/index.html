@@ -172,16 +172,22 @@ function initResourceNodes() {
 
 // ─── Workers ─────────────────────────────────────────────────────────────────
 function createWorker(id) {
+  // Spread workers around base so they don't stack on each other
+  const angle = (id / 8) * Math.PI * 2 + Math.random() * 0.5;
+  const r = 0.5 + Math.random() * 0.3;
+  const homeOffset = { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+  const startGx = BASE_CX + homeOffset.x;
+  const startGy = BASE_CY + homeOffset.y;
+  const p = isoProject(startGx, startGy);
   return {
     id,
-    x: isoProject(BASE_CX, BASE_CY).x,
-    y: isoProject(BASE_CX, BASE_CY).y,
-    gx: BASE_CX + (Math.random() - 0.5),
-    gy: BASE_CY + (Math.random() - 0.5),
+    x: p.x, y: p.y,
+    gx: startGx, gy: startGy,
+    homeOffset,
     targetNode: null,
-    state: 'idle', // idle, moving, gathering, returning
+    state: 'idle',
     carrying: null, carryAmt: 0,
-    speed: 1.2 + Math.random() * 0.4,
+    speed: 1.8 + Math.random() * 0.5,
     color: `hsl(${200 + id * 30},70%,70%)`,
     bobOffset: Math.random() * Math.PI * 2,
     gatherTimer: 0,
@@ -227,12 +233,12 @@ function updateWorker(w, dt) {
     const tx = w.targetNode.gx, ty = w.targetNode.gy;
     const dx = tx - w.gx, dy = ty - w.gy;
     const dist = Math.hypot(dx, dy);
-    if (dist < 0.25) {
+    if (dist < 0.18) {
       w.gx = tx; w.gy = ty;
       w.state = 'gathering';
       w.gatherTimer = 0;
     } else {
-      const spd = w.speed * dt * 0.06;
+      const spd = w.speed * (dt / 1000) * 2.2;
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
@@ -243,7 +249,7 @@ function updateWorker(w, dt) {
   if (w.state === 'gathering') {
     syncPos();
     w.gatherTimer += dt;
-    if (w.gatherTimer > 80) {
+    if (w.gatherTimer > 1800) {
       const node = w.targetNode;
       if (!node || node.depleted || node.stock <= 0) { w.state = 'idle'; w.targetNode = null; return; }
       const take = Math.min(node.amt, node.stock);
@@ -259,16 +265,18 @@ function updateWorker(w, dt) {
   }
 
   if (w.state === 'returning') {
-    const tx = BASE_CX, ty = BASE_CY;
+    // Return to a spot slightly scattered around base so workers don't stack
+    const tx = BASE_CX + w.homeOffset.x, ty = BASE_CY + w.homeOffset.y;
     const dx = tx - w.gx, dy = ty - w.gy;
     const dist = Math.hypot(dx, dy);
-    if (dist < 0.3) {
+    if (dist < 0.18) {
       state[w.carrying] += w.carryAmt;
       w.carrying = null; w.carryAmt = 0;
+      w.gx = tx; w.gy = ty;
       w.state = 'idle';
       updateHUD();
     } else {
-      const spd = w.speed * dt * 0.06;
+      const spd = w.speed * (dt / 1000) * 2.2;
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
@@ -691,7 +699,7 @@ function drawWorkers() {
     ctx.fillStyle = '#3050b0';
     ctx.fillRect(w.x - 5, w.y - 9 + bob, 10, 14);
     // Arms (walking animation)
-    const armSwing = w.state === 'moving' ? Math.sin(t * 0.18 + w.bobOffset) * 6 : 0;
+    const armSwing = (w.state === 'moving' || w.state === 'returning') ? Math.sin(t * 0.18 + w.bobOffset) * 6 : 0;
     ctx.fillStyle = '#2040a0';
     ctx.fillRect(w.x - 9, w.y - 8 + armSwing + bob, 4, 9);
     ctx.fillRect(w.x + 5, w.y - 8 - armSwing + bob, 4, 9);
@@ -902,12 +910,55 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', () => { lastTouch = null; });
 
+// ─── Save / Load ──────────────────────────────────────────────────────────────
+const SAVE_KEY = 'frostSurvival_v1';
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      gold: state.gold, food: state.food, wood: state.wood,
+      workerCount: state.workers.length, workerCost: state.workerCost,
+      wallLevel: state.wallLevel, wallCost: state.wallCost,
+      fireLevel: state.fireLevel, fireCost: state.fireCost,
+      day: state.day, survivalScore: state.survivalScore,
+    }));
+  } catch(e) {}
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    state.gold = s.gold ?? 10;
+    state.food = s.food ?? 10;
+    state.wood = s.wood ?? 5;
+    state.workerCost = s.workerCost ?? 20;
+    state.wallLevel = s.wallLevel ?? 1;
+    state.wallCost = s.wallCost ?? 30;
+    state.fireLevel = s.fireLevel ?? 1;
+    state.fireCost = s.fireCost ?? 20;
+    state.day = s.day ?? 1;
+    state.survivalScore = s.survivalScore ?? 0;
+    document.getElementById('day-num').textContent = state.day;
+    const extra = Math.max(0, (s.workerCount ?? 3) - 3);
+    for (let i = 0; i < extra; i++) state.workers.push(createWorker(3 + i));
+    return true;
+  } catch(e) { return false; }
+}
+
+// Auto-save every 15 seconds and on tab hide
+setInterval(saveGame, 15000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+window.addEventListener('pagehide', saveGame);
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 initResourceNodes();
 initWorkers();
 initSnow();
+const resumed = loadGame();
 updateHUD();
-showToast('Survive the frost! ❄️ Tap nodes to send workers');
+showToast(resumed ? `Welcome back! Day ${state.day} ❄️` : 'Survive the frost! ❄️ Tap nodes to send workers');
 requestAnimationFrame(loop);
 </script>
 </body>
