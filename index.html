@@ -1329,33 +1329,39 @@ function drawStormOverlay() {
 // ─── Main loop ────────────────────────────────────────────────────────────────
 let lastTime = 0;
 function loop(ts) {
-  const dt = Math.min(ts - lastTime, 50);
-  lastTime = ts;
-  state.tick++;
-
-  updateDay(dt);
-  updateStorm(dt);
-  updateRaid(dt);
-  updateSnow(dt);
-  updateNodes(dt);
-  // Always update workers — storm/raid just blocks new assignments (via assignWorker guard)
-  state.workers.forEach(w => updateWorker(w, dt));
-
-  // Draw everything in iso order
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBackground();
-  drawGrid();
-  drawWall();
-  drawBuildings();
-  drawResourceNodes();
-  drawWorkers();
-  drawSnow();
-  drawFloatingTexts();
-  drawStormOverlay();
-
-  updateHUDButtons();
-  updateStormBar();
+  // Schedule FIRST so an exception never kills the loop
   requestAnimationFrame(loop);
+
+  try {
+    const dt = Math.min(ts - lastTime, 50);
+    lastTime = ts;
+    state.tick++;
+
+    updateDay(dt);
+    updateStorm(dt);
+    updateRaid(dt);
+    updateSnow(dt);
+    updateNodes(dt);
+    // Always update workers — storm/raid just blocks new assignments (via assignWorker guard)
+    state.workers.forEach(w => updateWorker(w, dt));
+
+    // Draw everything in iso order
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+    drawGrid();
+    drawWall();
+    drawBuildings();
+    drawResourceNodes();
+    drawWorkers();
+    drawSnow();
+    drawFloatingTexts();
+    drawStormOverlay();
+
+    updateHUDButtons();
+    updateStormBar();
+  } catch(e) {
+    console.error('Game loop error:', e);
+  }
 }
 
 // ─── Storm countdown bar ───────────────────────────────────────────────────────
