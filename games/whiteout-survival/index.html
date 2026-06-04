@@ -411,6 +411,7 @@
     <div style="text-align:center;color:rgba(180,210,255,0.8);font-size:13px;margin-bottom:14px;">Available: <b style="color:#ffd24a;" id="research-gold">0 🪙</b></div>
     <div id="research-list"></div>
     <button class="close-btn" onclick="closeOverlay('research-overlay')">Close</button>
+    <button class="close-btn" id="btn-reset-research" onclick="confirmResetResearch()" style="margin-top:8px;background:rgba(180,30,30,0.25);border-color:rgba(255,80,80,0.35);color:#ff8888;display:none;">↩️ Refund All Research</button>
   </div>
 </div>
 
@@ -1576,6 +1577,32 @@ function buyResearch(key) {
   renderResearch();
 }
 
+function confirmResetResearch() {
+  const refund = Object.keys(RESEARCH_DEFS).reduce((sum, key) => {
+    const costs = RESEARCH_DEFS[key].costs;
+    return sum + costs.slice(0, state.research[key]).reduce((s, c) => s + c, 0);
+  }, 0);
+  if (refund === 0) return showToast('No research to refund');
+  showModal('↩️ Refund Research',
+    `Reset all research to level 0 and refund <b style="color:#ffd24a;">+${refund} 🪙</b> gold?`,
+    [
+      { label: 'Cancel', kind: 'secondary' },
+      { label: 'Refund All', kind: 'primary', onClick: () => {
+        Object.keys(RESEARCH_DEFS).forEach(key => {
+          const lvl = state.research[key];
+          // Undo Iron Storage cap bonus
+          if (key === 'storage') state.maxStorage -= 75 * lvl;
+          state.research[key] = 0;
+        });
+        state.gold += refund;
+        showToast('↩️ Research refunded: +' + refund + ' 🪙');
+        vibrate(30);
+        updateHUD();
+        renderResearch();
+      }},
+    ]);
+}
+
 function renderResearch() {
   document.getElementById('research-gold').textContent = Math.floor(state.gold) + ' 🪙';
   const list = document.getElementById('research-list');
@@ -1600,6 +1627,10 @@ function renderResearch() {
       ${costBox}
     </div>`;
   }).join('');
+
+  // Show refund button only if anything has been researched
+  const anyResearched = Object.values(state.research).some(v => v > 0);
+  document.getElementById('btn-reset-research').style.display = anyResearched ? 'block' : 'none';
 }
 
 function openResearch() { renderResearch(); document.getElementById('research-overlay').classList.add('show'); }
