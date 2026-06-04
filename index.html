@@ -223,7 +223,7 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-// ─── Responsive canvas ───────────────────────────────────────────────────────
+// ─── Responsive canvas ────────────────────────────────────────────────
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -231,12 +231,12 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────────
 const TW = 52, TH = 26; // isometric tile width/height
 const GRID_COLS = 14, GRID_ROWS = 14;
 const BASE_CX = 7, BASE_CY = 7; // base center in grid
 
-// ─── Game state ──────────────────────────────────────────────────────────────
+// ─── Game state ───────────────────────────────────────────────────────────────────
 const state = {
   gold: 10, food: 10, wood: 5,
   workers: [], workerCost: 20,
@@ -254,7 +254,7 @@ const state = {
   totalGold: 0, totalFood: 0, totalWood: 0,
 };
 
-// ─── Iso projection ──────────────────────────────────────────────────────────
+// ─── Iso projection ────────────────────────────────────────────────────────────────
 function isoProject(gx, gy) {
   const sx = canvas.width / 2 + state.cameraX;
   const sy = canvas.height * 0.38 + state.cameraY;
@@ -264,7 +264,7 @@ function isoProject(gx, gy) {
   };
 }
 
-// ─── Resource nodes ──────────────────────────────────────────────────────────
+// ─── Resource nodes ───────────────────────────────────────────────────────────────
 function initResourceNodes() {
   state.resourceNodes = [];
   const types = [
@@ -296,7 +296,7 @@ function initResourceNodes() {
   }
 }
 
-// ─── Workers ─────────────────────────────────────────────────────────────────
+// ─── Workers ────────────────────────────────────────────────────────────────────────
 function createWorker(id) {
   // Spread workers around base so they don't stack on each other
   const angle = (id / 8) * Math.PI * 2 + Math.random() * 0.5;
@@ -411,7 +411,7 @@ function updateWorker(w, dt) {
   }
 }
 
-// ─── Snow particles ───────────────────────────────────────────────────────────
+// ─── Snow particles ───────────────────────────────────────────────────────────────────
 function initSnow() {
   for (let i = 0; i < 80; i++) spawnSnow();
 }
@@ -436,19 +436,19 @@ function updateSnow(dt) {
   });
 }
 
-// ─── Floating texts ───────────────────────────────────────────────────────────
+// ─── Floating texts ───────────────────────────────────────────────────────────────────
 function spawnFloat(text, x, y) {
   state.floatingTexts.push({ text, x, y, life: 90, alpha: 1 });
 }
 
-// ─── Day/night cycle ──────────────────────────────────────────────────────────
+// ─── Day/night cycle ──────────────────────────────────────────────────────────────────
 function updateDay(dt) {
   state.dayTimer += dt;
   if (state.dayTimer > state.DAY_DURATION * 60) {
     state.dayTimer = 0;
     state.day++;
     document.getElementById('day-num').textContent = state.day;
-    // Every 5 days, trigger storm
+    saveGame();
     if (state.day % 5 === 0) triggerStorm();
     else showToast(`Day ${state.day} begins ❄️`);
     // Regen depleted nodes
@@ -477,7 +477,6 @@ function updateStorm(dt) {
   // Storm lasts ~15 seconds real time
   if (state.stormTimer > 900) {
     state.storm = false;
-    // Storm damage: lose some food based on wall/fire level
     const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2);
     if (dmg > 0) {
       state.food = Math.max(0, state.food - dmg);
@@ -490,7 +489,7 @@ function updateStorm(dt) {
   }
 }
 
-// ─── Regen resource nodes ─────────────────────────────────────────────────────
+// ─── Regen resource nodes ───────────────────────────────────────────────────────────────────
 function updateNodes(dt) {
   state.resourceNodes.forEach(n => {
     if (n.stock < n.max) {
@@ -504,7 +503,7 @@ function updateNodes(dt) {
   });
 }
 
-// ─── Drawing ─────────────────────────────────────────────────────────────────
+// ─── Drawing ───────────────────────────────────────────────────────────────────────────
 function drawBackground() {
   // Sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -883,7 +882,7 @@ function drawStormOverlay() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-// ─── Main loop ────────────────────────────────────────────────────────────────
+// ─── Main loop ────────────────────────────────────────────────────────────────────────────
 let lastTime = 0;
 function loop(ts) {
   const dt = Math.min(ts - lastTime, 50);
@@ -923,12 +922,13 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-// ─── HUD ──────────────────────────────────────────────────────────────────────
+// ─── HUD ──────────────────────────────────────────────────────────────────────────────
 function updateHUD() {
   document.getElementById('r-gold').textContent = state.gold;
   document.getElementById('r-food').textContent = state.food;
   document.getElementById('r-wood').textContent = state.wood;
   document.getElementById('r-workers').textContent = state.workers.length;
+  saveGame();
 }
 
 function updateHUDButtons() {
@@ -943,7 +943,7 @@ function updateHUDButtons() {
   document.getElementById('btn-feast').className = 'btn' + (state.food < state.feastCost ? ' disabled' : '');
 }
 
-// ─── Button actions ───────────────────────────────────────────────────────────
+// ─── Button actions ───────────────────────────────────────────────────────────────────
 function buyWorker() {
   if (state.gold < state.workerCost) return showToast('Need more gold 🪙');
   state.gold -= state.workerCost;
@@ -986,7 +986,7 @@ function feast() {
   updateHUD();
 }
 
-// ─── Stats panel ─────────────────────────────────────────────────────────────
+// ─── Stats panel ─────────────────────────────────────────────────────────────────────────
 function openStats() {
   const nextStorm = Math.ceil(state.day / 5) * 5;
   document.getElementById('st-day').textContent = state.day;
@@ -999,7 +999,7 @@ function openStats() {
 
   // Wall stars (max 3)
   const wallEl = document.getElementById('st-wall-stars');
-  wallEl.innerHTML = [1,2,3].map(i => `<span class="star${i <= state.wallLevel ? ' on' : ''}">⭐</span>`).join('');
+  wallEl.innerHTML = [1,2,3].map(i => `<span class="star${i <= state.wallLevel ? ' on' : ''}">&#11088;</span>`).join('');
 
   // Fire stars (max 5)
   const fireEl = document.getElementById('st-fire-stars');
@@ -1024,7 +1024,7 @@ function closeStatsIfBg(e) {
   if (e.target === document.getElementById('stats-overlay')) closeStats();
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast ──────────────────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg) {
   const el = document.getElementById('toast');
@@ -1034,7 +1034,7 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-// ─── Touch/tap on canvas ──────────────────────────────────────────────────────
+// ─── Touch/tap on canvas ──────────────────────────────────────────────────────────────────
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   const touch = e.touches[0];
@@ -1055,7 +1055,7 @@ canvas.addEventListener('touchstart', e => {
   });
 }, { passive: false });
 
-// ─── Camera pan ───────────────────────────────────────────────────────────────
+// ─── Camera pan ─────────────────────────────────────────────────────────────────────────────
 let lastTouch = null;
 canvas.addEventListener('touchmove', e => {
   if (e.touches.length === 2) {
@@ -1075,7 +1075,7 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', () => { lastTouch = null; });
 
-// ─── Save / Load ──────────────────────────────────────────────────────────────
+// ─── Save / Load ──────────────────────────────────────────────────────────────────────────────
 const SAVE_KEY = 'frostSurvival_v1';
 
 function saveGame() {
@@ -1116,18 +1116,35 @@ function loadGame() {
   } catch(e) { return false; }
 }
 
-// Auto-save every 15 seconds and on tab hide
-setInterval(saveGame, 15000);
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+// Auto-save every 5 seconds and on any hide/close
+setInterval(saveGame, 5000);
+document.addEventListener('visibilitychange', saveGame);
 window.addEventListener('pagehide', saveGame);
+window.addEventListener('beforeunload', saveGame);
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Init ──────────────────────────────────────────────────────────────────────────────────
 initResourceNodes();
-initWorkers();
 initSnow();
-const resumed = loadGame();
+// Load before initWorkers so saved worker count is known
+const _save = (() => {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+})();
+if (_save) {
+  state.gold = _save.gold ?? 10; state.food = _save.food ?? 10; state.wood = _save.wood ?? 5;
+  state.workerCost = _save.workerCost ?? 20;
+  state.wallLevel = _save.wallLevel ?? 1; state.wallCost = _save.wallCost ?? 30;
+  state.fireLevel = _save.fireLevel ?? 1; state.fireCost = _save.fireCost ?? 20;
+  state.day = _save.day ?? 1; state.survivalScore = _save.survivalScore ?? 0;
+  state.totalGold = _save.totalGold ?? 0; state.totalFood = _save.totalFood ?? 0; state.totalWood = _save.totalWood ?? 0;
+  document.getElementById('day-num').textContent = state.day;
+}
+const savedWorkerCount = _save ? Math.max(3, Math.min(_save.workerCount ?? 3, 12)) : 3;
+for (let i = 0; i < savedWorkerCount; i++) state.workers.push(createWorker(i));
 updateHUD();
-showToast(resumed ? `Welcome back! Day ${state.day} ❄️` : 'Survive the frost! ❄️ Tap nodes to send workers');
+showToast(_save ? `Welcome back! Day ${state.day} ❄️` : 'Survive the frost! ❄️ Tap nodes to send workers');
 requestAnimationFrame(loop);
 </script>
 </body>
