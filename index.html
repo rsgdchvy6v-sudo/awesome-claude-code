@@ -98,6 +98,7 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
+// ─── Responsive canvas ───────────────────────────────────────────────────────────────────────────────
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -105,10 +106,12 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-const TW = 52, TH = 26;
+// ─── Constants ───────────────────────────────────────────────────────────────────────────────────
+const TW = 52, TH = 26; // isometric tile width/height
 const GRID_COLS = 14, GRID_ROWS = 14;
-const BASE_CX = 7, BASE_CY = 7;
+const BASE_CX = 7, BASE_CY = 7; // base center in grid
 
+// ─── Game state ──────────────────────────────────────────────────────────────────────────────────
 const state = {
   gold: 10, food: 10, wood: 5,
   workers: [], workerCost: 20,
@@ -125,6 +128,7 @@ const state = {
   survivalScore: 0,
 };
 
+// ─── Iso projection ──────────────────────────────────────────────────────────────────────────────
 function isoProject(gx, gy) {
   const sx = canvas.width / 2 + state.cameraX;
   const sy = canvas.height * 0.38 + state.cameraY;
@@ -134,6 +138,7 @@ function isoProject(gx, gy) {
   };
 }
 
+// ─── Resource nodes ─────────────────────────────────────────────────────────────────────────────
 function initResourceNodes() {
   state.resourceNodes = [];
   const types = [
@@ -165,6 +170,7 @@ function initResourceNodes() {
   }
 }
 
+// ─── Workers ───────────────────────────────────────────────────────────────────────────────────────
 function createWorker(id) {
   return {
     id,
@@ -173,7 +179,7 @@ function createWorker(id) {
     gx: BASE_CX + (Math.random() - 0.5),
     gy: BASE_CY + (Math.random() - 0.5),
     targetNode: null,
-    state: 'idle',
+    state: 'idle', // idle, moving, gathering, returning
     carrying: null, carryAmt: 0,
     speed: 1.2 + Math.random() * 0.4,
     color: `hsl(${200 + id * 30},70%,70%)`,
@@ -187,11 +193,16 @@ function initWorkers() {
 }
 
 function assignWorker(w) {
+  // Find closest available resource node with stock
   const available = state.resourceNodes.filter(n => !n.depleted && n.stock > 0);
   if (!available.length) { w.state = 'idle'; return; }
+
+  // Prefer nodes not currently targeted by other workers
   const targeted = new Set(state.workers.filter(x => x !== w && x.targetNode !== null).map(x => x.targetNode?.id));
   const preferred = available.filter(n => !targeted.has(n.id));
   const pool = preferred.length ? preferred : available;
+
+  // Pick by distance
   pool.sort((a, b) => {
     const da = Math.hypot(a.gx - w.gx, a.gy - w.gy);
     const db = Math.hypot(b.gx - w.gx, b.gy - w.gy);
@@ -202,8 +213,15 @@ function assignWorker(w) {
 }
 
 function updateWorker(w, dt) {
-  const bob = Math.sin(state.tick * 0.08 + w.bobOffset) * 1.5;
-  if (w.state === 'idle') { assignWorker(w); return; }
+  // Always sync screen coords from grid coords (no bob — applied at draw time only)
+  const syncPos = () => { const p = isoProject(w.gx, w.gy); w.x = p.x; w.y = p.y; };
+
+  if (w.state === 'idle') {
+    syncPos();
+    assignWorker(w);
+    return;
+  }
+
   if (w.state === 'moving') {
     if (!w.targetNode || w.targetNode.depleted) { w.state = 'idle'; w.targetNode = null; return; }
     const tx = w.targetNode.gx, ty = w.targetNode.gy;
@@ -218,10 +236,12 @@ function updateWorker(w, dt) {
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
-    const p = isoProject(w.gx, w.gy);
-    w.x = p.x; w.y = p.y + bob;
+    syncPos();
+    return;
   }
+
   if (w.state === 'gathering') {
+    syncPos();
     w.gatherTimer += dt;
     if (w.gatherTimer > 80) {
       const node = w.targetNode;
@@ -231,11 +251,13 @@ function updateWorker(w, dt) {
       if (node.stock <= 0) { node.depleted = true; node.stock = 0; }
       w.carrying = node.yield;
       w.carryAmt = take;
-      w.state = 'returning';
+      spawnFloat('+' + take + (node.yield === 'wood' ? '🪵' : node.yield === 'food' ? '🥩' : '🪙'), w.x, w.y - 20);
       w.targetNode = null;
-      spawnFloat('+' + take + (node.yield === 'wood' ? '🪵' : node.yield === 'food' ? '🥩' : '🪙'), isoProject(node.gx, node.gy).x, isoProject(node.gx, node.gy).y - 20);
+      w.state = 'returning';
     }
+    return;
   }
+
   if (w.state === 'returning') {
     const tx = BASE_CX, ty = BASE_CY;
     const dx = tx - w.gx, dy = ty - w.gy;
@@ -246,21 +268,26 @@ function updateWorker(w, dt) {
       w.state = 'idle';
       updateHUD();
     } else {
-      const spd = w.speed * dt * 0.055;
+      const spd = w.speed * dt * 0.06;
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
-    const p = isoProject(w.gx, w.gy);
-    w.x = p.x; w.y = p.y + bob;
+    syncPos();
   }
 }
 
-function initSnow() { for (let i = 0; i < 80; i++) spawnSnow(); }
+// ─── Snow particles ────────────────────────────────────────────────────────────────────────────────
+function initSnow() {
+  for (let i = 0; i < 80; i++) spawnSnow();
+}
 function spawnSnow() {
   state.snowParticles.push({
-    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-    r: 1 + Math.random() * 2.5, vx: (Math.random() - 0.5) * 0.4,
-    vy: 0.3 + Math.random() * 0.7, alpha: 0.3 + Math.random() * 0.7,
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: 1 + Math.random() * 2.5,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: 0.3 + Math.random() * 0.7,
+    alpha: 0.3 + Math.random() * 0.7,
   });
 }
 
@@ -274,16 +301,22 @@ function updateSnow(dt) {
   });
 }
 
-function spawnFloat(text, x, y) { state.floatingTexts.push({ text, x, y, life: 90, alpha: 1 }); }
+// ─── Floating texts ────────────────────────────────────────────────────────────────────────────────
+function spawnFloat(text, x, y) {
+  state.floatingTexts.push({ text, x, y, life: 90, alpha: 1 });
+}
 
+// ─── Day/night cycle ───────────────────────────────────────────────────────────────────────────────
 function updateDay(dt) {
   state.dayTimer += dt;
   if (state.dayTimer > state.DAY_DURATION * 60) {
     state.dayTimer = 0;
     state.day++;
     document.getElementById('day-num').textContent = state.day;
+    // Every 5 days, trigger storm
     if (state.day % 5 === 0) triggerStorm();
     else showToast(`Day ${state.day} begins ❄️`);
+    // Regen depleted nodes
     state.resourceNodes.forEach(n => {
       if (n.depleted) { n.depleted = false; n.stock = Math.floor(n.max * 0.6); }
     });
@@ -297,22 +330,32 @@ function triggerStorm() {
   el.style.display = 'block';
   showToast('❄️ Blizzard! Workers shelter now!');
   setTimeout(() => { el.style.display = 'none'; }, 3000);
-  state.workers.forEach(w => { w.state = 'returning'; w.targetNode = null; w.carrying = null; });
+  // Workers retreat to base during storm
+  state.workers.forEach(w => {
+    w.state = 'returning'; w.targetNode = null; w.carrying = null;
+  });
 }
 
 function updateStorm(dt) {
   if (!state.storm) return;
   state.stormTimer += dt;
+  // Storm lasts ~15 seconds real time
   if (state.stormTimer > 900) {
     state.storm = false;
+    // Storm damage: lose some food based on wall/fire level
     const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2);
-    if (dmg > 0) { state.food = Math.max(0, state.food - dmg); showToast(`Storm ended. Lost ${dmg} food 🥩`); }
-    else showToast('Storm survived! Your base held! 💪');
+    if (dmg > 0) {
+      state.food = Math.max(0, state.food - dmg);
+      showToast(`Storm ended. Lost ${dmg} food 🥩`);
+    } else {
+      showToast('Storm survived! Your base held! 💪');
+    }
     state.survivalScore++;
     updateHUD();
   }
 }
 
+// ─── Regen resource nodes ─────────────────────────────────────────────────────────────────────────────
 function updateNodes(dt) {
   state.resourceNodes.forEach(n => {
     if (n.stock < n.max) {
@@ -326,21 +369,27 @@ function updateNodes(dt) {
   });
 }
 
+// ─── Drawing ───────────────────────────────────────────────────────────────────────────────────────
 function drawBackground() {
+  // Sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  const sf = state.storm ? 0.6 : 1;
-  grad.addColorStop(0, `rgb(${Math.floor(15*sf)},${Math.floor(25*sf)},${Math.floor(55*sf)})`);
-  grad.addColorStop(1, `rgb(${Math.floor(30*sf)},${Math.floor(50*sf)},${Math.floor(90*sf)})`);
+  const stormFactor = state.storm ? 0.6 : 1;
+  grad.addColorStop(0, `rgb(${Math.floor(15 * stormFactor)},${Math.floor(25 * stormFactor)},${Math.floor(55 * stormFactor)})`);
+  grad.addColorStop(1, `rgb(${Math.floor(30 * stormFactor)},${Math.floor(50 * stormFactor)},${Math.floor(90 * stormFactor)})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawGrid() {
+  // Sort tiles back-to-front for correct iso rendering
   const tiles = [];
-  for (let gy = 0; gy < GRID_ROWS; gy++)
-    for (let gx = 0; gx < GRID_COLS; gx++)
+  for (let gy = 0; gy < GRID_ROWS; gy++) {
+    for (let gx = 0; gx < GRID_COLS; gx++) {
       tiles.push({ gx, gy });
+    }
+  }
   tiles.sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+
   tiles.forEach(({ gx, gy }) => {
     const p = isoProject(gx, gy);
     const isBase = Math.abs(gx - BASE_CX) <= 3 && Math.abs(gy - BASE_CY) <= 3;
@@ -352,65 +401,142 @@ function drawGrid() {
 function drawIsoTile(x, y, isBase, isCenter) {
   const hw = TW / 2, hh = TH / 2;
   ctx.beginPath();
-  ctx.moveTo(x, y - hh); ctx.lineTo(x + hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x - hw, y);
+  ctx.moveTo(x, y - hh);
+  ctx.lineTo(x + hw, y);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x - hw, y);
   ctx.closePath();
-  ctx.fillStyle = isCenter ? '#5a6a80' : isBase ? '#d4a870' : '#c8dff0';
+
+  if (isCenter) {
+    ctx.fillStyle = '#5a6a80';
+  } else if (isBase) {
+    ctx.fillStyle = '#d4a870'; // sandy/dirt ground inside base
+  } else {
+    ctx.fillStyle = '#c8dff0'; // snow
+  }
   ctx.fill();
   ctx.strokeStyle = isBase ? 'rgba(180,140,80,0.3)' : 'rgba(180,210,240,0.4)';
-  ctx.lineWidth = 0.5; ctx.stroke();
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
 }
 
 function drawWall() {
+  // Draw fence/wall around base
   const wallColor = ['', '#8b5e3c', '#7a4a2a', '#5a3a1a'][Math.min(state.wallLevel, 3)];
-  const r = 3;
-  const wp = [
-    [BASE_CX-r,BASE_CY-r],[BASE_CX,BASE_CY-r],[BASE_CX+r,BASE_CY-r],
-    [BASE_CX+r,BASE_CY],[BASE_CX+r,BASE_CY+r],[BASE_CX,BASE_CY+r],[BASE_CX-r,BASE_CY+r],[BASE_CX-r,BASE_CY],
+  const r = 3; // radius of base in grid units
+  const wallPosts = [
+    [BASE_CX - r, BASE_CY - r], [BASE_CX, BASE_CY - r], [BASE_CX + r, BASE_CY - r],
+    [BASE_CX + r, BASE_CY], [BASE_CX + r, BASE_CY + r],
+    [BASE_CX, BASE_CY + r], [BASE_CX - r, BASE_CY + r], [BASE_CX - r, BASE_CY],
   ];
-  for (let i = 0; i < wp.length; i++) {
-    const pa = isoProject(wp[i][0], wp[i][1]);
-    const pb = isoProject(wp[(i+1)%wp.length][0], wp[(i+1)%wp.length][1]);
-    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
-    ctx.strokeStyle = wallColor; ctx.lineWidth = 3 + state.wallLevel; ctx.stroke();
-    ctx.beginPath(); ctx.arc(pa.x, pa.y - 8, 4, 0, Math.PI * 2);
-    ctx.fillStyle = wallColor; ctx.fill();
+
+  // Draw wall segments
+  for (let i = 0; i < wallPosts.length; i++) {
+    const [ax, ay] = wallPosts[i];
+    const [bx, by] = wallPosts[(i + 1) % wallPosts.length];
+    const pa = isoProject(ax, ay);
+    const pb = isoProject(bx, by);
+
+    ctx.beginPath();
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    ctx.strokeStyle = wallColor;
+    ctx.lineWidth = 3 + state.wallLevel;
+    ctx.stroke();
+
+    // Wall post
+    ctx.beginPath();
+    ctx.arc(pa.x, pa.y - 8, 4, 0, Math.PI * 2);
+    ctx.fillStyle = wallColor;
+    ctx.fill();
   }
+
+  // Draw gate at south-west
   const gate = isoProject(BASE_CX - r, BASE_CY);
-  ctx.fillStyle = '#5a3010'; ctx.fillRect(gate.x - 10, gate.y - 20, 20, 25);
-  ctx.fillStyle = '#8b5020'; ctx.fillRect(gate.x - 8, gate.y - 18, 8, 22); ctx.fillRect(gate.x + 1, gate.y - 18, 8, 22);
+  ctx.fillStyle = '#5a3010';
+  ctx.fillRect(gate.x - 10, gate.y - 20, 20, 25);
+  ctx.fillStyle = '#8b5020';
+  ctx.fillRect(gate.x - 8, gate.y - 18, 8, 22);
+  ctx.fillRect(gate.x + 1, gate.y - 18, 8, 22);
 }
 
 function drawBuildings() {
+  // Main building (command post)
   const cp = isoProject(BASE_CX, BASE_CY - 1);
   drawIsoBuilding(cp.x, cp.y, 30, 45, '#6b4c2a', '#8b6c3a', '#5a3c1a');
-  ctx.fillStyle = '#4a3020'; ctx.fillRect(cp.x + 5, cp.y - 58, 8, 18);
-  if (state.fireLevel >= 1) drawFire(cp.x + 9, cp.y - 60);
+  // Chimney
+  ctx.fillStyle = '#4a3020';
+  ctx.fillRect(cp.x + 5, cp.y - 58, 8, 18);
+  // Fire/smoke
+  if (state.fireLevel >= 1) {
+    drawFire(cp.x + 9, cp.y - 60);
+  }
+
+  // Storage shed
   const st = isoProject(BASE_CX + 1, BASE_CY + 1);
   drawIsoBuilding(st.x, st.y, 20, 30, '#7a5030', '#9a7040', '#6a4020');
+
+  // Watchtower
   const wt = isoProject(BASE_CX - 1, BASE_CY + 1);
-  ctx.fillStyle = '#5a3c1a'; ctx.fillRect(wt.x - 6, wt.y - 60, 12, 65);
-  ctx.fillStyle = '#6b4c2a'; ctx.fillRect(wt.x - 10, wt.y - 65, 20, 12);
+  ctx.fillStyle = '#5a3c1a';
+  ctx.fillRect(wt.x - 6, wt.y - 60, 12, 65);
+  ctx.fillStyle = '#6b4c2a';
+  ctx.fillRect(wt.x - 10, wt.y - 65, 20, 12);
+
+  // Campfire in center
   drawFire(isoProject(BASE_CX, BASE_CY).x, isoProject(BASE_CX, BASE_CY).y - 6);
 }
 
 function drawIsoBuilding(x, y, w, h, sideColor, topColor, shadowColor) {
   const hw = w, hh = w * 0.5;
+  // Shadow
   ctx.beginPath();
-  ctx.moveTo(x, y+hh*0.4); ctx.lineTo(x+hw, y+hh*0.9); ctx.lineTo(x, y+hh*1.4); ctx.lineTo(x-hw, y+hh*0.9);
-  ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill();
+  ctx.moveTo(x, y + hh * 0.4);
+  ctx.lineTo(x + hw, y + hh * 0.9);
+  ctx.lineTo(x, y + hh * 1.4);
+  ctx.lineTo(x - hw, y + hh * 0.9);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fill();
+
+  // Left face
   ctx.beginPath();
-  ctx.moveTo(x-hw,y-h); ctx.lineTo(x,y-h+hh); ctx.lineTo(x,y+hh); ctx.lineTo(x-hw,y);
-  ctx.fillStyle = shadowColor; ctx.fill();
+  ctx.moveTo(x - hw, y - h);
+  ctx.lineTo(x, y - h + hh);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x - hw, y);
+  ctx.fillStyle = shadowColor;
+  ctx.fill();
+
+  // Right face
   ctx.beginPath();
-  ctx.moveTo(x+hw,y-h); ctx.lineTo(x,y-h+hh); ctx.lineTo(x,y+hh); ctx.lineTo(x+hw,y);
-  ctx.fillStyle = sideColor; ctx.fill();
+  ctx.moveTo(x + hw, y - h);
+  ctx.lineTo(x, y - h + hh);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x + hw, y);
+  ctx.fillStyle = sideColor;
+  ctx.fill();
+
+  // Top face
   ctx.beginPath();
-  ctx.moveTo(x,y-h-hh); ctx.lineTo(x+hw,y-h); ctx.lineTo(x,y-h+hh); ctx.lineTo(x-hw,y-h);
-  ctx.fillStyle = topColor; ctx.fill();
+  ctx.moveTo(x, y - h - hh);
+  ctx.lineTo(x + hw, y - h);
+  ctx.lineTo(x, y - h + hh);
+  ctx.lineTo(x - hw, y - h);
+  ctx.fillStyle = topColor;
+  ctx.fill();
+
+  // Snow on top
   ctx.beginPath();
-  ctx.moveTo(x,y-h-hh+4); ctx.lineTo(x+hw*0.8,y-h+4); ctx.lineTo(x,y-h+hh-2); ctx.lineTo(x-hw*0.8,y-h+4);
-  ctx.fillStyle = 'rgba(220,240,255,0.7)'; ctx.fill();
-  ctx.fillStyle = '#3a2010'; ctx.fillRect(x - 5, y + hh * 0.1 - 16, 10, 15);
+  ctx.moveTo(x, y - h - hh + 4);
+  ctx.lineTo(x + hw * 0.8, y - h + 4);
+  ctx.lineTo(x, y - h + hh - 2);
+  ctx.lineTo(x - hw * 0.8, y - h + 4);
+  ctx.fillStyle = 'rgba(220,240,255,0.7)';
+  ctx.fill();
+
+  // Door
+  ctx.fillStyle = '#3a2010';
+  ctx.fillRect(x - 5, y + hh * 0.1 - 16, 10, 15);
 }
 
 function drawFire(x, y) {
@@ -418,98 +544,193 @@ function drawFire(x, y) {
   for (let i = 0; i < 6; i++) {
     const flicker = Math.sin(t * 0.15 + i * 1.1) * 3;
     const h = 8 + i * 2 + flicker;
-    ctx.beginPath(); ctx.arc(x + Math.sin(i * 2.1) * 3, y - h, 2 + i * 0.5, 0, Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(x + Math.sin(i * 2.1) * 3, y - h, 2 + i * 0.5, 0, Math.PI * 2);
     ctx.fillStyle = i < 2 ? '#ff4400' : i < 4 ? '#ff8800' : '#ffcc00';
-    ctx.globalAlpha = 0.8 - i * 0.1; ctx.fill();
+    ctx.globalAlpha = 0.8 - i * 0.1;
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
+  // Glow
   const grd = ctx.createRadialGradient(x, y, 0, x, y, 18);
-  grd.addColorStop(0, 'rgba(255,120,0,0.25)'); grd.addColorStop(1, 'rgba(255,120,0,0)');
-  ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fill();
+  grd.addColorStop(0, 'rgba(255,120,0,0.25)');
+  grd.addColorStop(1, 'rgba(255,120,0,0)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawResourceNodes() {
+  // Sort by depth
   const sorted = [...state.resourceNodes].sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
   sorted.forEach(node => {
     if (node.depleted) return;
     const p = isoProject(node.gx, node.gy);
-    const sr = node.stock / node.max;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + 4, 14, 7, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,30,0.3)'; ctx.fill();
-    if (node.type === 'tree') drawTree(p.x, p.y, sr);
-    else if (node.type === 'animal') drawAnimal(p.x, p.y, sr);
-    else drawMine(p.x, p.y, sr);
+    const stockRatio = node.stock / node.max;
+
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + 4, 14, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,30,0.3)';
+    ctx.fill();
+
+    // Node graphic
+    if (node.type === 'tree') {
+      drawTree(p.x, p.y, stockRatio);
+    } else if (node.type === 'animal') {
+      drawAnimal(p.x, p.y, stockRatio);
+    } else {
+      drawMine(p.x, p.y, stockRatio);
+    }
+
+    // Stock bar
     const barW = 28;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(p.x - barW/2, p.y - 36, barW, 4);
-    ctx.fillStyle = sr > 0.5 ? '#44ff88' : sr > 0.25 ? '#ffcc00' : '#ff4444';
-    ctx.fillRect(p.x - barW/2, p.y - 36, barW * sr, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(p.x - barW / 2, p.y - 36, barW, 4);
+    ctx.fillStyle = stockRatio > 0.5 ? '#44ff88' : stockRatio > 0.25 ? '#ffcc00' : '#ff4444';
+    ctx.fillRect(p.x - barW / 2, p.y - 36, barW * stockRatio, 4);
   });
 }
 
 function drawTree(x, y, ratio) {
-  const sway = Math.sin(state.tick * 0.025) * 1.5;
-  ctx.fillStyle = '#5a3a1a'; ctx.fillRect(x - 3 + sway * 0.3, y - 20, 6, 22);
+  const t = state.tick;
+  const sway = Math.sin(t * 0.025) * 1.5;
+  // Trunk
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(x - 3 + sway * 0.3, y - 20, 6, 22);
+  // Layers
   [[0, 28], [6, 22], [10, 16]].forEach(([off, w], i) => {
     ctx.beginPath();
-    ctx.moveTo(x + sway*(i*0.4), y-18-off); ctx.lineTo(x+w/2+sway*(i*0.4), y-off); ctx.lineTo(x-w/2+sway*(i*0.4), y-off);
+    ctx.moveTo(x + sway * (i * 0.4), y - 18 - off);
+    ctx.lineTo(x + w / 2 + sway * (i * 0.4), y - off);
+    ctx.lineTo(x - w / 2 + sway * (i * 0.4), y - off);
     ctx.closePath();
-    ctx.fillStyle = ratio > 0.3 ? `hsl(${130+i*10},${50+i*10}%,${28+i*4}%)` : '#5a6a5a'; ctx.fill();
+    ctx.fillStyle = ratio > 0.3 ? `hsl(${130 + i * 10},${50 + i * 10}%,${28 + i * 4}%)` : '#5a6a5a';
+    ctx.fill();
   });
-  ctx.beginPath(); ctx.moveTo(x+sway, y-44); ctx.lineTo(x+8+sway*0.5, y-28); ctx.lineTo(x-8+sway*0.5, y-28); ctx.closePath();
-  ctx.fillStyle = 'rgba(220,240,255,0.8)'; ctx.fill();
+  // Snow on tree
+  ctx.beginPath();
+  ctx.moveTo(x + sway, y - 44);
+  ctx.lineTo(x + 8 + sway * 0.5, y - 28);
+  ctx.lineTo(x - 8 + sway * 0.5, y - 28);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(220,240,255,0.8)';
+  ctx.fill();
 }
 
 function drawAnimal(x, y, ratio) {
+  // Simple bear shape
   const c = ratio > 0.3 ? '#8b6040' : '#6a5040';
   ctx.fillStyle = c;
-  ctx.beginPath(); ctx.ellipse(x, y-8, 12, 8, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x+10, y-14, 8, 7, 0.3, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x+14, y-20, 3, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x+8, y-21, 3, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+14, y-15, 2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(x+14.5, y-15, 1, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = 'rgba(220,240,255,0.5)'; ctx.beginPath(); ctx.ellipse(x-2, y-8, 6, 3, -0.3, 0, Math.PI*2); ctx.fill();
+  // Body
+  ctx.beginPath(); ctx.ellipse(x, y - 8, 12, 8, 0, 0, Math.PI * 2); ctx.fill();
+  // Head
+  ctx.beginPath(); ctx.ellipse(x + 10, y - 14, 8, 7, 0.3, 0, Math.PI * 2); ctx.fill();
+  // Ears
+  ctx.beginPath(); ctx.arc(x + 14, y - 20, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 8, y - 21, 3, 0, Math.PI * 2); ctx.fill();
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x + 14, y - 15, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(x + 14.5, y - 15, 1, 0, Math.PI * 2); ctx.fill();
+  // Snow patch
+  ctx.fillStyle = 'rgba(220,240,255,0.5)';
+  ctx.beginPath(); ctx.ellipse(x - 2, y - 8, 6, 3, -0.3, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawMine(x, y, ratio) {
+  // Rock/mine shaft
   ctx.fillStyle = ratio > 0.3 ? '#8a7a60' : '#6a6a60';
-  ctx.beginPath(); ctx.moveTo(x,y-28); ctx.lineTo(x+16,y-10); ctx.lineTo(x+12,y); ctx.lineTo(x-12,y); ctx.lineTo(x-16,y-10); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#2a2020'; ctx.beginPath(); ctx.ellipse(x, y-4, 8, 5, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#ccaa44'; ctx.font = '14px serif'; ctx.textAlign = 'center'; ctx.fillText('⛏️', x, y-12);
-  if (Math.sin(state.tick * 0.1 + x) > 0.8) { ctx.fillStyle = '#ffdd44'; ctx.font = '10px serif'; ctx.fillText('✨', x+8, y-22); }
+  ctx.beginPath();
+  ctx.moveTo(x, y - 28);
+  ctx.lineTo(x + 16, y - 10);
+  ctx.lineTo(x + 12, y);
+  ctx.lineTo(x - 12, y);
+  ctx.lineTo(x - 16, y - 10);
+  ctx.closePath();
+  ctx.fill();
+  // Shaft entrance
+  ctx.fillStyle = '#2a2020';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 4, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Pickaxe icon
+  ctx.fillStyle = '#ccaa44';
+  ctx.font = '14px serif'; ctx.textAlign = 'center';
+  ctx.fillText('⛏️', x, y - 12);
+  // Sparkle
+  if (Math.sin(state.tick * 0.1 + x) > 0.8) {
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = '10px serif';
+    ctx.fillText('✨', x + 8, y - 22);
+  }
 }
 
 function drawWorkers() {
-  [...state.workers].sort((a,b)=>a.y-b.y).forEach(w => {
-    const bob = Math.sin(state.tick * 0.12 + w.bobOffset) * (w.state === 'idle' ? 0 : 2);
-    ctx.beginPath(); ctx.ellipse(w.x, w.y+6, 8, 4, 0, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(0,0,40,0.35)'; ctx.fill();
-    ctx.fillStyle = w.color; ctx.beginPath(); ctx.arc(w.x, w.y-14+bob, 5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2040a0'; ctx.fillRect(w.x-6, w.y-22+bob, 12, 4); ctx.fillRect(w.x-4, w.y-28+bob, 8, 8);
-    ctx.fillStyle = '#3050b0'; ctx.fillRect(w.x-5, w.y-9+bob, 10, 14);
-    const armSwing = w.state === 'moving' ? Math.sin(state.tick*0.18+w.bobOffset)*6 : 0;
+  const sorted = [...state.workers].sort((a, b) => a.y - b.y);
+  sorted.forEach(w => {
+    const t = state.tick;
+    const bob = Math.sin(t * 0.12 + w.bobOffset) * (w.state === 'idle' ? 0 : 2);
+
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(w.x, w.y + 6, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,40,0.35)';
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = w.color;
+    ctx.beginPath();
+    ctx.arc(w.x, w.y - 14 + bob, 5, 0, Math.PI * 2); // head
+    ctx.fill();
+    // Hat
     ctx.fillStyle = '#2040a0';
-    ctx.fillRect(w.x-9, w.y-8+armSwing+bob, 4, 9); ctx.fillRect(w.x+5, w.y-8-armSwing+bob, 4, 9);
-    if (w.carrying) { ctx.font = '14px serif'; ctx.textAlign = 'center'; ctx.fillText(w.carrying==='wood'?'🪵':w.carrying==='food'?'🥩':'🪙', w.x, w.y-32+bob); }
-    const dotC = {idle:'#aaa',moving:'#44ff88',gathering:'#ffcc00',returning:'#ff8844'};
-    ctx.fillStyle = dotC[w.state]||'#fff'; ctx.beginPath(); ctx.arc(w.x+6, w.y-22+bob, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(w.x - 6, w.y - 22 + bob, 12, 4);
+    ctx.fillRect(w.x - 4, w.y - 28 + bob, 8, 8);
+    // Body coat
+    ctx.fillStyle = '#3050b0';
+    ctx.fillRect(w.x - 5, w.y - 9 + bob, 10, 14);
+    // Arms (walking animation)
+    const armSwing = w.state === 'moving' ? Math.sin(t * 0.18 + w.bobOffset) * 6 : 0;
+    ctx.fillStyle = '#2040a0';
+    ctx.fillRect(w.x - 9, w.y - 8 + armSwing + bob, 4, 9);
+    ctx.fillRect(w.x + 5, w.y - 8 - armSwing + bob, 4, 9);
+    // Carry item
+    if (w.carrying) {
+      ctx.font = '14px serif'; ctx.textAlign = 'center';
+      ctx.fillText(w.carrying === 'wood' ? '🪵' : w.carrying === 'food' ? '🥩' : '🪙', w.x, w.y - 32 + bob);
+    }
+
+    // State indicator dot
+    const dotColors = { idle: '#aaaaaa', moving: '#44ff88', gathering: '#ffcc00', returning: '#ff8844' };
+    ctx.fillStyle = dotColors[w.state] || '#fff';
+    ctx.beginPath(); ctx.arc(w.x + 6, w.y - 22 + bob, 3, 0, Math.PI * 2); ctx.fill();
   });
 }
 
 function drawSnow() {
   state.snowParticles.forEach(p => {
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-    ctx.fillStyle = `rgba(220,240,255,${p.alpha*(state.storm?0.9:0.7)})`; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(220,240,255,${p.alpha * (state.storm ? 0.9 : 0.7)})`;
+    ctx.fill();
   });
 }
 
 function drawFloatingTexts() {
   state.floatingTexts = state.floatingTexts.filter(ft => ft.life > 0);
   state.floatingTexts.forEach(ft => {
-    ctx.globalAlpha = ft.alpha; ctx.font = 'bold 14px -apple-system'; ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3;
-    ctx.strokeText(ft.text, ft.x, ft.y); ctx.fillText(ft.text, ft.x, ft.y);
-    ft.y -= 0.5; ft.life--; ft.alpha = ft.life / 90;
+    ctx.globalAlpha = ft.alpha;
+    ctx.font = 'bold 14px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(ft.text, ft.x, ft.y);
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ft.y -= 0.5;
+    ft.life--;
+    ft.alpha = ft.life / 90;
   });
   ctx.globalAlpha = 1;
 }
@@ -517,23 +738,57 @@ function drawFloatingTexts() {
 function drawStormOverlay() {
   if (!state.storm) return;
   const intensity = Math.min(state.stormTimer / 120, 0.5);
-  ctx.fillStyle = `rgba(200,220,255,${intensity*0.15})`; ctx.fillRect(0,0,canvas.width,canvas.height);
-  const vg = ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.height*0.3,canvas.width/2,canvas.height/2,canvas.height);
-  vg.addColorStop(0,'transparent'); vg.addColorStop(1,`rgba(100,150,255,${intensity*0.4})`);
-  ctx.fillStyle = vg; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = `rgba(200,220,255,${intensity * 0.15})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Vignette
+  const vgrd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.3, canvas.width / 2, canvas.height / 2, canvas.height);
+  vgrd.addColorStop(0, 'transparent');
+  vgrd.addColorStop(1, `rgba(100,150,255,${intensity * 0.4})`);
+  ctx.fillStyle = vgrd;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+// ─── Main loop ────────────────────────────────────────────────────────────────────────────────────
 let lastTime = 0;
 function loop(ts) {
-  const dt = Math.min(ts - lastTime, 50); lastTime = ts; state.tick++;
-  updateDay(dt); updateStorm(dt); updateSnow(dt); updateNodes(dt);
-  if (!state.storm) state.workers.forEach(w => updateWorker(w, dt));
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawBackground(); drawGrid(); drawWall(); drawBuildings(); drawResourceNodes(); drawWorkers(); drawSnow(); drawFloatingTexts(); drawStormOverlay();
+  const dt = Math.min(ts - lastTime, 50);
+  lastTime = ts;
+  state.tick++;
+
+  updateDay(dt);
+  updateStorm(dt);
+  updateSnow(dt);
+  updateNodes(dt);
+  if (!state.storm) {
+    state.workers.forEach(w => updateWorker(w, dt));
+  }
+
+  // Draw everything in iso order
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
+  drawGrid();
+  drawWall();
+
+  // Collect all drawables and sort by iso depth
+  const drawCalls = [];
+  state.resourceNodes.filter(n => !n.depleted).forEach(n => {
+    const p = isoProject(n.gx, n.gy);
+    drawCalls.push({ depth: n.gx + n.gy, fn: () => { /* already handles self */ } });
+  });
+
+  // Draw buildings
+  drawBuildings();
+  drawResourceNodes();
+  drawWorkers();
+  drawSnow();
+  drawFloatingTexts();
+  drawStormOverlay();
+
   updateHUDButtons();
   requestAnimationFrame(loop);
 }
 
+// ─── HUD ────────────────────────────────────────────────────────────────────────────────────────────────
 function updateHUD() {
   document.getElementById('r-gold').textContent = state.gold;
   document.getElementById('r-food').textContent = state.food;
@@ -543,79 +798,115 @@ function updateHUD() {
 
 function updateHUDButtons() {
   const wc = state.workerCost;
-  document.getElementById('worker-cost').textContent = '🪙'+wc;
-  document.getElementById('btn-worker').className = 'btn'+(state.gold<wc?' disabled':'');
-  document.getElementById('wall-cost').textContent = '🪵'+state.wallCost;
-  document.getElementById('btn-wall').className = 'btn'+(state.wood<state.wallCost?' disabled':'');
-  document.getElementById('fire-cost').textContent = '🪵'+state.fireCost;
-  document.getElementById('btn-fire').className = 'btn'+(state.wood<state.fireCost?' disabled':'');
-  document.getElementById('feast-cost').textContent = '🥩'+state.feastCost;
-  document.getElementById('btn-feast').className = 'btn'+(state.food<state.feastCost?' disabled':'');
+  document.getElementById('worker-cost').textContent = '🪙' + wc;
+  document.getElementById('btn-worker').className = 'btn' + (state.gold < wc ? ' disabled' : '');
+  document.getElementById('wall-cost').textContent = '🪵' + state.wallCost;
+  document.getElementById('btn-wall').className = 'btn' + (state.wood < state.wallCost ? ' disabled' : '');
+  document.getElementById('fire-cost').textContent = '🪵' + state.fireCost;
+  document.getElementById('btn-fire').className = 'btn' + (state.wood < state.fireCost ? ' disabled' : '');
+  document.getElementById('feast-cost').textContent = '🥩' + state.feastCost;
+  document.getElementById('btn-feast').className = 'btn' + (state.food < state.feastCost ? ' disabled' : '');
 }
 
+// ─── Button actions ─────────────────────────────────────────────────────────────────────────────────────
 function buyWorker() {
   if (state.gold < state.workerCost) return showToast('Need more gold 🪙');
-  state.gold -= state.workerCost; state.workerCost = Math.floor(state.workerCost * 1.5);
+  state.gold -= state.workerCost;
+  state.workerCost = Math.floor(state.workerCost * 1.5);
   const w = createWorker(state.workers.length);
-  w.gx = BASE_CX+(Math.random()-0.5)*2; w.gy = BASE_CY+(Math.random()-0.5)*2;
-  const p = isoProject(w.gx,w.gy); w.x=p.x; w.y=p.y;
-  state.workers.push(w); showToast('New worker hired! 👷'); updateHUD();
+  w.gx = BASE_CX + (Math.random() - 0.5) * 2;
+  w.gy = BASE_CY + (Math.random() - 0.5) * 2;
+  const p = isoProject(w.gx, w.gy);
+  w.x = p.x; w.y = p.y;
+  state.workers.push(w);
+  showToast('New worker hired! 👷');
+  updateHUD();
 }
 
 function upgradeWall() {
   if (state.wood < state.wallCost) return showToast('Need more wood 🪵');
-  state.wood -= state.wallCost; state.wallLevel = Math.min(3, state.wallLevel+1); state.wallCost = Math.floor(state.wallCost*1.8);
-  showToast(`Wall upgraded to level ${state.wallLevel}! 🧱`); updateHUD();
+  state.wood -= state.wallCost;
+  state.wallLevel = Math.min(3, state.wallLevel + 1);
+  state.wallCost = Math.floor(state.wallCost * 1.8);
+  showToast(`Wall upgraded to level ${state.wallLevel}! 🧱`);
+  updateHUD();
 }
 
 function upgradeFire() {
   if (state.wood < state.fireCost) return showToast('Need more wood 🪵');
-  state.wood -= state.fireCost; state.fireLevel = Math.min(5,state.fireLevel+1); state.fireCost = Math.floor(state.fireCost*1.6);
-  showToast(`Hearth upgraded! Level ${state.fireLevel} 🔥`); updateHUD();
+  state.wood -= state.fireCost;
+  state.fireLevel = Math.min(5, state.fireLevel + 1);
+  state.fireCost = Math.floor(state.fireCost * 1.6);
+  showToast(`Hearth upgraded! Level ${state.fireLevel} 🔥`);
+  updateHUD();
 }
 
 function feast() {
   if (state.food < state.feastCost) return showToast('Need more food 🥩');
   state.food -= state.feastCost;
+  // Speed boost for workers
   state.workers.forEach(w => { w.speed += 0.3; });
-  spawnFloat('⚡ Workers energized!', canvas.width/2, canvas.height/2);
-  showToast('Feast! Workers move faster ⚡'); updateHUD();
+  spawnFloat('⚡ Workers energized!', canvas.width / 2, canvas.height / 2);
+  showToast('Feast! Workers move faster ⚡');
+  updateHUD();
 }
 
+// ─── Toast ───────────────────────────────────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg) {
-  const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
+// ─── Touch/tap on canvas ───────────────────────────────────────────────────────────────────────────────
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  const touch = e.touches[0]; const tx = touch.clientX, ty = touch.clientY;
+  const touch = e.touches[0];
+  const tx = touch.clientX, ty = touch.clientY;
+  // Check if tapping near a resource node
   state.resourceNodes.forEach(n => {
     if (n.depleted) return;
     const p = isoProject(n.gx, n.gy);
-    if (Math.hypot(tx-p.x, ty-p.y) < 30) {
+    if (Math.hypot(tx - p.x, ty - p.y) < 30) {
+      // Send nearest idle worker
       const idle = state.workers.find(w => w.state === 'idle');
-      if (idle) { idle.targetNode = n; idle.state = 'moving'; showToast('Worker dispatched! 👷'); }
+      if (idle) {
+        idle.targetNode = n;
+        idle.state = 'moving';
+        showToast('Worker dispatched! 👷');
+      }
     }
   });
 }, { passive: false });
 
+// ─── Camera pan ─────────────────────────────────────────────────────────────────────────────────────
 let lastTouch = null;
 canvas.addEventListener('touchmove', e => {
   if (e.touches.length === 2) {
     e.preventDefault();
-    const cx=(e.touches[0].clientX+e.touches[1].clientX)/2, cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     if (lastTouch) {
-      state.cameraX = Math.max(-200,Math.min(200,state.cameraX+cx-lastTouch.x));
-      state.cameraY = Math.max(-150,Math.min(150,state.cameraY+cy-lastTouch.y));
+      state.cameraX += cx - lastTouch.x;
+      state.cameraY += cy - lastTouch.y;
+      // Clamp camera
+      state.cameraX = Math.max(-200, Math.min(200, state.cameraX));
+      state.cameraY = Math.max(-150, Math.min(150, state.cameraY));
     }
-    lastTouch = {x:cx,y:cy};
+    lastTouch = { x: cx, y: cy };
   }
 }, { passive: false });
+
 canvas.addEventListener('touchend', () => { lastTouch = null; });
 
-initResourceNodes(); initWorkers(); initSnow(); updateHUD();
+// ─── Init ────────────────────────────────────────────────────────────────────────────────────────────────────
+initResourceNodes();
+initWorkers();
+initSnow();
+updateHUD();
 showToast('Survive the frost! ❄️ Tap nodes to send workers');
 requestAnimationFrame(loop);
 </script>
