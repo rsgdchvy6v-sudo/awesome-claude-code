@@ -740,7 +740,7 @@ function updateDay(dt) {
     document.getElementById('day-num').textContent = state.day;
     processFeeding();
     saveGame();
-    if (state.day % 5 === 0) {
+    if (state.day % 5 === 0 && !state.storm) {
       triggerStorm();
     } else if (state.day >= 20 && state.day >= state.nextRaidDay && Math.random() < 0.15) {
       triggerRaid();
@@ -808,8 +808,8 @@ function triggerStorm() {
 function updateStorm(dt) {
   if (!state.storm) return;
   state.stormTimer += dt;
-  // Storm lasts ~15 seconds real time
-  if (state.stormTimer > 900) {
+  // Storm lasts ~10 seconds real time
+  if (state.stormTimer > 10000) {
     state.storm = false;
     const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2);
     if (dmg > 0) {
@@ -1228,42 +1228,48 @@ function drawWorkers() {
   sorted.forEach(w => {
     const t = state.tick;
     const carrying = w.state === 'returning' && w.carryAmt > 0;
-    const amp = w.state === 'idle' ? 0 : (carrying ? 3 : 2);
+    // Idle workers shiver during storm, breathe softly otherwise; never fully static
+    const idleAmp = (state.storm || state.raid) ? 1.5 : 0.8;
+    const amp = w.state === 'idle' ? idleAmp : (carrying ? 3 : 2);
     const bob = Math.sin(t * 0.12 + w.bobOffset) * amp;
+
+    // Shiver offset during storm
+    const shiver = (state.storm && w.state === 'idle') ? Math.sin(t * 0.6 + w.bobOffset * 3) * 1.5 : 0;
+    const wx = w.x + shiver;
 
     // Shadow
     ctx.beginPath();
-    ctx.ellipse(w.x, w.y + 6, 8, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(wx, w.y + 6, 8, 4, 0, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,0,40,0.35)';
     ctx.fill();
 
     // Body
     ctx.fillStyle = w.color;
     ctx.beginPath();
-    ctx.arc(w.x, w.y - 14 + bob, 5, 0, Math.PI * 2); // head
+    ctx.arc(wx, w.y - 14 + bob, 5, 0, Math.PI * 2); // head
     ctx.fill();
     // Hat
     ctx.fillStyle = '#2040a0';
-    ctx.fillRect(w.x - 6, w.y - 22 + bob, 12, 4);
-    ctx.fillRect(w.x - 4, w.y - 28 + bob, 8, 8);
+    ctx.fillRect(wx - 6, w.y - 22 + bob, 12, 4);
+    ctx.fillRect(wx - 4, w.y - 28 + bob, 8, 8);
     // Body coat
     ctx.fillStyle = '#3050b0';
-    ctx.fillRect(w.x - 5, w.y - 9 + bob, 10, 14);
-    // Arms (walking animation)
+    ctx.fillRect(wx - 5, w.y - 9 + bob, 10, 14);
+    // Arms (walking animation; huddled closer during storm idle)
     const armSwing = (w.state === 'moving' || w.state === 'returning') ? Math.sin(t * 0.18 + w.bobOffset) * 6 : 0;
     ctx.fillStyle = '#2040a0';
-    ctx.fillRect(w.x - 9, w.y - 8 + armSwing + bob, 4, 9);
-    ctx.fillRect(w.x + 5, w.y - 8 - armSwing + bob, 4, 9);
+    ctx.fillRect(wx - 9, w.y - 8 + armSwing + bob, 4, 9);
+    ctx.fillRect(wx + 5, w.y - 8 - armSwing + bob, 4, 9);
     // Carry item
     if (w.carrying) {
       ctx.font = '14px serif'; ctx.textAlign = 'center';
-      ctx.fillText(w.carrying === 'wood' ? '🪵' : w.carrying === 'food' ? '🥩' : '🪙', w.x, w.y - 32 + bob);
+      ctx.fillText(w.carrying === 'wood' ? '🪵' : w.carrying === 'food' ? '🥩' : '🪙', wx, w.y - 32 + bob);
     }
 
     // State indicator dot
     const dotColors = { idle: '#aaaaaa', moving: '#44ff88', gathering: '#ffcc00', returning: '#ff8844' };
     ctx.fillStyle = dotColors[w.state] || '#fff';
-    ctx.beginPath(); ctx.arc(w.x + 6, w.y - 22 + bob, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(wx + 6, w.y - 22 + bob, 3, 0, Math.PI * 2); ctx.fill();
   });
 }
 
