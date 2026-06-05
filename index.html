@@ -259,6 +259,19 @@
   .ach-name { color: #fff; font-size: 13px; font-weight: 800; }
   .ach-desc { color: rgba(180,210,255,0.65); font-size: 11px; margin-top: 1px; }
   .ach-check { font-size: 16px; color: #ffd24a; flex: 0 0 auto; }
+  .ach-reward {
+    display: inline-block; margin-top: 5px;
+    font-size: 11px; font-weight: 700;
+    color: rgba(255,210,60,0.85);
+    background: rgba(255,180,0,0.12);
+    border: 1px solid rgba(255,180,0,0.25);
+    border-radius: 8px; padding: 2px 8px;
+  }
+  .ach-reward.claimed {
+    color: rgba(100,220,100,0.9);
+    background: rgba(50,180,50,0.12);
+    border-color: rgba(100,220,100,0.3);
+  }
 
   /* Generic modal (offline / prestige confirm) */
   #modal-overlay {
@@ -477,16 +490,16 @@ const RESEARCH_DEFS = {
 };
 
 const ACHIEVEMENTS = [
-  { id: 'firstlight', icon: '🌅', name: 'First Light',    desc: 'Reach Day 5' },
-  { id: 'survivor',   icon: '❄️', name: 'Storm Survivor', desc: 'Survive your first blizzard' },
-  { id: 'goldrush',   icon: '💰', name: 'Gold Rush',      desc: 'Collect 100 gold total' },
-  { id: 'wellfed',    icon: '🍖', name: 'Well Fed',       desc: 'Collect 150 food total' },
-  { id: 'lumberjack', icon: '🪵', name: 'Lumberjack',     desc: 'Collect 200 wood total' },
-  { id: 'foreman',    icon: '👷', name: 'Foreman',        desc: 'Have 5 workers at once' },
-  { id: 'fortress',   icon: '🏰', name: 'Fortress',       desc: 'Upgrade wall to level 3' },
-  { id: 'eternal',    icon: '🔥', name: 'Eternal Flame',  desc: 'Upgrade hearth to level 4' },
-  { id: 'deepwinter', icon: '❄️❄️', name: 'Deep Winter',  desc: 'Survive 5 storms' },
-  { id: 'veteran',    icon: '🌟', name: 'Veteran',        desc: 'Reach Day 20' },
+  { id: 'firstlight', icon: '🌅', name: 'First Light',    desc: 'Reach Day 5',                reward: { type: 'gold',           value: 15,  label: '+15 🪙 Gold' } },
+  { id: 'survivor',   icon: '❄️', name: 'Storm Survivor', desc: 'Survive your first blizzard', reward: { type: 'repair',         value: 0,   label: 'Wall Repaired 🧱' } },
+  { id: 'goldrush',   icon: '💰', name: 'Gold Rush',      desc: 'Collect 100 gold total',      reward: { type: 'gold',           value: 25,  label: '+25 🪙 Gold' } },
+  { id: 'wellfed',    icon: '🍖', name: 'Well Fed',       desc: 'Collect 150 food total',      reward: { type: 'food',           value: 20,  label: '+20 🥩 Food' } },
+  { id: 'lumberjack', icon: '🪵', name: 'Lumberjack',     desc: 'Collect 200 wood total',      reward: { type: 'wood',           value: 25,  label: '+25 🪵 Wood' } },
+  { id: 'foreman',    icon: '👷', name: 'Foreman',        desc: 'Have 5 workers at once',      reward: { type: 'workerDiscount', value: 0.7, label: 'Worker Cost -30% 👷' } },
+  { id: 'fortress',   icon: '🏰', name: 'Fortress',       desc: 'Upgrade wall to level 3',     reward: { type: 'gold',           value: 30,  label: '+30 🪙 Gold' } },
+  { id: 'eternal',    icon: '🔥', name: 'Eternal Flame',  desc: 'Upgrade hearth to level 4',   reward: { type: 'speed',          value: 0.2, label: 'Workers +Speed ⚡' } },
+  { id: 'deepwinter', icon: '❄️❄️', name: 'Deep Winter', desc: 'Survive 5 storms',            reward: { type: 'storage',        value: 75,  label: '+75 Storage Cap 📦' } },
+  { id: 'veteran',    icon: '🌟', name: 'Veteran',        desc: 'Reach Day 20',                reward: { type: 'gold',           value: 40,  label: '+40 🪙 Gold' } },
 ];
 
 // ─── Game state ──────────────────────────────────────────────────────────────
@@ -514,6 +527,7 @@ const state = {
   totalGold: 0, totalFood: 0, totalWood: 0,
   research: { swift: 0, strong: 0, sense: 0, storage: 0, chef: 0, goldrush: 0 },
   achievements: [],
+  rewardsClaimed: [],
   prestigeLevel: 0, prestigeBonus: 1,
   lastSaveTime: Date.now(),
   workerOrder: 'any',
@@ -745,6 +759,75 @@ function spawnFloat(text, x, y) {
 }
 function spawnLoss(text, x, y) {
   state.floatingTexts.push({ text, x, y, life: 100, alpha: 1, color: '#ff6655' });
+}
+
+// ─── Achievement rewards ──────────────────────────────────────────────────────
+function applyAchievementReward(reward, silent) {
+  if (!reward) return;
+  const bp = isoProject(BASE_CX, BASE_CY);
+  switch (reward.type) {
+    case 'gold':
+      state.gold = Math.min(state.maxStorage, state.gold + reward.value);
+      state.totalGold += reward.value;
+      if (!silent) spawnFloat('+' + reward.value + '🪙', bp.x, bp.y - 50);
+      break;
+    case 'food':
+      state.food = Math.min(state.maxStorage, state.food + reward.value);
+      state.totalFood += reward.value;
+      if (!silent) spawnFloat('+' + reward.value + '🥩', bp.x, bp.y - 50);
+      break;
+    case 'wood':
+      state.wood = Math.min(state.maxStorage, state.wood + reward.value);
+      state.totalWood += reward.value;
+      if (!silent) spawnFloat('+' + reward.value + '🪵', bp.x, bp.y - 50);
+      break;
+    case 'repair':
+      state.wallDamage = 0;
+      if (!silent) spawnFloat('🧱 Wall Repaired!', bp.x, bp.y - 50);
+      break;
+    case 'workerDiscount':
+      state.workerCost = Math.max(10, Math.floor(state.workerCost * reward.value));
+      if (!silent) spawnFloat('👷 Cost -30%!', bp.x, bp.y - 50);
+      break;
+    case 'speed':
+      state.workers.forEach(w => { w.speed += reward.value; });
+      if (!silent) spawnFloat('⚡ Workers Boosted!', bp.x, bp.y - 50);
+      break;
+    case 'storage':
+      state.maxStorage += reward.value;
+      if (!silent) spawnFloat('+' + reward.value + '📦 Cap!', bp.x, bp.y - 50);
+      break;
+  }
+  updateHUD();
+}
+
+function backfillAchievementRewards() {
+  let goldGained = 0, foodGained = 0, woodGained = 0, storageGained = 0;
+  ACHIEVEMENTS.forEach(a => {
+    if (state.achievements.includes(a.id) && !state.rewardsClaimed.includes(a.id)) {
+      state.rewardsClaimed.push(a.id);
+      if (!a.reward) return;
+      switch (a.reward.type) {
+        case 'gold':           goldGained += a.reward.value; break;
+        case 'food':           foodGained += a.reward.value; break;
+        case 'wood':           woodGained += a.reward.value; break;
+        case 'repair':         state.wallDamage = 0; break;
+        case 'workerDiscount': state.workerCost = Math.max(10, Math.floor(state.workerCost * a.reward.value)); break;
+        case 'speed':          state.workers.forEach(w => { w.speed += a.reward.value; }); break;
+        case 'storage':        storageGained += a.reward.value; break;
+      }
+    }
+  });
+  if (storageGained > 0) state.maxStorage += storageGained;
+  if (goldGained > 0) { state.gold = Math.min(state.maxStorage, state.gold + goldGained); state.totalGold += goldGained; }
+  if (foodGained > 0) { state.food = Math.min(state.maxStorage, state.food + foodGained); state.totalFood += foodGained; }
+  if (woodGained > 0) { state.wood = Math.min(state.maxStorage, state.wood + woodGained); state.totalWood += woodGained; }
+  const parts = [];
+  if (goldGained > 0) parts.push('+' + goldGained + '🪙');
+  if (foodGained > 0) parts.push('+' + foodGained + '🥩');
+  if (woodGained > 0) parts.push('+' + woodGained + '🪵');
+  if (storageGained > 0) parts.push('+' + storageGained + '📦 cap');
+  if (parts.length > 0) setTimeout(() => showToast('🏆 Achievement rewards: ' + parts.join(' ')), 600);
 }
 
 // ─── Day/night cycle ──────────────────────────────────────────────────────────
@@ -1501,8 +1584,10 @@ function updateHUDButtons() {
 function unlock(id) {
   if (state.achievements.includes(id)) return;
   state.achievements.push(id);
+  state.rewardsClaimed.push(id);
   const def = ACHIEVEMENTS.find(a => a.id === id);
-  showToast('🏆 Achievement: ' + def.name + '!');
+  applyAchievementReward(def.reward, false);
+  showToast('🏆 ' + def.name + '!' + (def.reward ? ' Reward: ' + def.reward.label : ''));
   vibrate(100);
   saveGame();
 }
@@ -1681,11 +1766,15 @@ function renderAchievements() {
   const list = document.getElementById('ach-list');
   list.innerHTML = ACHIEVEMENTS.map(a => {
     const got = state.achievements.includes(a.id);
+    const rewardBadge = a.reward
+      ? `<div class="ach-reward${got ? ' claimed' : ''}">${got ? '✓ ' : '🎁 '}${a.reward.label}</div>`
+      : '';
     return `<div class="ach-card${got ? ' unlocked' : ''}">
       <div class="ach-ico">${a.icon}</div>
       <div class="ach-mid">
         <div class="ach-name">${a.name}</div>
         <div class="ach-desc">${a.desc}</div>
+        ${rewardBadge}
       </div>
       <div class="ach-check">${got ? '✓' : '🔒'}</div>
     </div>`;
@@ -1914,7 +2003,7 @@ function saveGame() {
       day: state.day, survivalScore: state.survivalScore, stormsTriggered: state.stormsTriggered,
       totalGold: state.totalGold, totalFood: state.totalFood, totalWood: state.totalWood,
       hunger: state.hunger, wallDamage: state.wallDamage, nextRaidDay: state.nextRaidDay,
-      research: state.research, achievements: state.achievements,
+      research: state.research, achievements: state.achievements, rewardsClaimed: state.rewardsClaimed,
       prestigeLevel: state.prestigeLevel, prestigeBonus: state.prestigeBonus,
       lastSaveTime: state.lastSaveTime,
       workerOrder: state.workerOrder,
@@ -1979,6 +2068,7 @@ if (_save) {
   state.nextRaidDay = _save.nextRaidDay ?? 20;
   if (_save.research) Object.assign(state.research, _save.research);
   state.achievements = Array.isArray(_save.achievements) ? _save.achievements.slice() : [];
+  state.rewardsClaimed = Array.isArray(_save.rewardsClaimed) ? _save.rewardsClaimed.slice() : [];
   state.prestigeLevel = _save.prestigeLevel ?? 0;
   state.prestigeBonus = _save.prestigeBonus ?? 1;
   state.workerOrder = _save.workerOrder ?? 'any';
@@ -2001,6 +2091,9 @@ for (let i = 0; i < savedWorkerCount; i++) {
 
 // Offline progress (after workers/state restored)
 applyOfflineProgress(_save);
+
+// Grant rewards for any achievements earned before this update
+if (_save) backfillAchievementRewards();
 
 updateHUD();
 checkAchievements();
