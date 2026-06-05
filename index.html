@@ -697,7 +697,7 @@ function updateWorker(w, dt) {
       w.state = 'gathering';
       w.gatherTimer = 0;
     } else {
-      const spd = w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w);
+      const spd = Math.min(dist, w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w));
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
@@ -746,7 +746,7 @@ function updateWorker(w, dt) {
       w.state = 'idle';
       updateHUD();
     } else {
-      const spd = w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w);
+      const spd = Math.min(dist, w.speed * (dt / 1000) * 2.2 * workerSpeedMult(w));
       w.gx += (dx / dist) * spd;
       w.gy += (dy / dist) * spd;
     }
