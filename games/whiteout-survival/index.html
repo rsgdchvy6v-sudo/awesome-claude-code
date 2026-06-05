@@ -399,7 +399,7 @@
     <div id="st-ach-badges" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
 
     <button class="close-btn" onclick="closeOverlay('stats-overlay')">Close</button>
-    <button class="close-btn" onclick="confirmReset()" style="margin-top:8px;background:rgba(180,30,30,0.25);border-color:rgba(255,80,80,0.35);color:#ff8888;">🗑️ Reset Game</button>
+    <button class="close-btn" id="btn-reset-hold" style="margin-top:8px;background:rgba(80,10,10,0.3);border-color:rgba(255,80,80,0.25);color:rgba(255,100,100,0.5);font-size:12px;">🗑️ Hold 3s to Reset Game</button>
   </div>
 </div>
 
@@ -1710,15 +1710,43 @@ function openStats() {
 function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
 function closeBg(e, id) { if (e.target === document.getElementById(id)) closeOverlay(id); }
 
-// ─── Reset game ───────────────────────────────────────────────────────────────
-function confirmReset() {
-  closeOverlay('stats-overlay');
-  showModal('🗑️ Reset Game',
-    'This will <b style="color:#ff8888;">erase all progress</b> — resources, workers, research, achievements, and days survived.<br><br>Are you sure?',
-    [
-      { label: 'Cancel', kind: 'secondary' },
-      { label: 'Reset Everything', kind: 'primary', onClick: resetGame },
-    ]);
+// ─── Reset game (hold 3s) ────────────────────────────────────────────────────
+let _resetHoldTimer = null;
+function initResetHold() {
+  const btn = document.getElementById('btn-reset-hold');
+  if (!btn) return;
+  const HOLD_MS = 3000;
+  let start = null;
+  let raf = null;
+  function tick() {
+    const pct = Math.min(1, (Date.now() - start) / HOLD_MS);
+    btn.style.background = `rgba(${Math.floor(180 * pct + 80 * (1-pct))},${Math.floor(10)},${Math.floor(10)},${0.3 + pct * 0.5})`;
+    btn.textContent = pct < 1 ? `🗑️ Hold ${Math.ceil(HOLD_MS * (1-pct) / 1000)}s to Reset Game` : '🗑️ Release to Reset!';
+    if (pct < 1) raf = requestAnimationFrame(tick);
+    else vibrate(50);
+  }
+  function onStart(e) { e.preventDefault(); start = Date.now(); raf = requestAnimationFrame(tick); }
+  function onEnd(e) {
+    cancelAnimationFrame(raf);
+    const held = start ? Date.now() - start : 0;
+    start = null;
+    btn.style.background = 'rgba(80,10,10,0.3)';
+    btn.textContent = '🗑️ Hold 3s to Reset Game';
+    if (held >= HOLD_MS) {
+      closeOverlay('stats-overlay');
+      showModal('🗑️ Reset Game',
+        'This will <b style="color:#ff8888;">erase all progress</b> — resources, workers, research, achievements, and days survived.<br><br>Are you absolutely sure?',
+        [
+          { label: 'Cancel', kind: 'secondary' },
+          { label: '⚠️ Yes, Reset', kind: 'primary', onClick: resetGame },
+        ]);
+    }
+  }
+  btn.addEventListener('touchstart', onStart, { passive: false });
+  btn.addEventListener('touchend', onEnd);
+  btn.addEventListener('touchcancel', onEnd);
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('mouseup', onEnd);
 }
 
 function resetGame() {
@@ -1939,6 +1967,7 @@ applyOfflineProgress(_save);
 
 updateHUD();
 checkAchievements();
+initResetHold();
 showToast(_save ? `Welcome back! Day ${state.day} ❄️` : 'Survive the frost! ❄️ Tap nodes to send workers');
 requestAnimationFrame(loop);
 </script>
