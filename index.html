@@ -389,6 +389,10 @@
       <span class="sr-label">🌨️ Storm Protection</span>
       <span class="sr-val" id="st-protection">0%</span>
     </div>
+    <div class="stat-row" id="st-prestige-row" style="display:none">
+      <span class="sr-label">🌟 Prestige Bonus</span>
+      <span class="sr-val" id="st-prestige">+0%</span>
+    </div>
 
     <hr class="stats-divider">
     <div class="sr-label" style="color:rgba(180,210,255,0.75);font-size:13px;margin-bottom:6px;">Workers</div>
@@ -737,7 +741,10 @@ function updateSnow(dt) {
 
 // ─── Floating texts ───────────────────────────────────────────────────────────
 function spawnFloat(text, x, y) {
-  state.floatingTexts.push({ text, x, y, life: 90, alpha: 1 });
+  state.floatingTexts.push({ text, x, y, life: 90, alpha: 1, color: '#ffffff' });
+}
+function spawnLoss(text, x, y) {
+  state.floatingTexts.push({ text, x, y, life: 100, alpha: 1, color: '#ff6655' });
 }
 
 // ─── Day/night cycle ──────────────────────────────────────────────────────────
@@ -774,6 +781,10 @@ function processFeeding() {
   if (state.food >= needed) {
     state.food -= needed;
     state.hunger = Math.max(0, state.hunger - 50);
+    if (needed > 0) {
+      const bp = isoProject(BASE_CX, BASE_CY);
+      spawnLoss(`-${needed}🥩`, bp.x, bp.y - 30);
+    }
   } else {
     state.food = 0;
     state.hunger += 25;
@@ -807,7 +818,12 @@ function triggerStorm() {
     const fLost = Math.floor(state.food * 0.2);
     const wLost = Math.floor(state.wood * 0.2);
     state.food -= fLost; state.wood -= wLost;
-    if (fLost + wLost > 0) showToast(`🧱 Wall breached! Lost ${fLost}🥩 ${wLost}🪵`);
+    if (fLost + wLost > 0) {
+      const bp = isoProject(BASE_CX, BASE_CY);
+      if (fLost > 0) spawnLoss(`-${fLost}🥩`, bp.x - 18, bp.y - 35);
+      if (wLost > 0) spawnLoss(`-${wLost}🪵`, bp.x + 18, bp.y - 50);
+      showToast(`🧱 Wall breached! Lost ${fLost}🥩 ${wLost}🪵`);
+    }
   }
 
   // Workers retreat to base during storm
@@ -825,6 +841,8 @@ function updateStorm(dt) {
     const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2);
     if (dmg > 0) {
       state.food = Math.max(0, state.food - dmg);
+      const bp = isoProject(BASE_CX, BASE_CY);
+      spawnLoss(`-${dmg}🥩`, bp.x, bp.y - 40);
       showToast(`Storm ended. Lost ${dmg} food 🥩`);
     } else {
       showToast('Storm survived! Your base held! 💪');
@@ -861,6 +879,10 @@ function updateRaid(dt) {
     state.gold -= gLost; state.food -= fLost; state.wood -= wLost;
     state.nextRaidDay = state.day + 3 + Math.floor(Math.random() * 5);
     if (gLost + fLost + wLost > 0) {
+      const bp = isoProject(BASE_CX, BASE_CY);
+      if (gLost > 0) spawnLoss(`-${gLost}🪙`, bp.x - 25, bp.y - 30);
+      if (fLost > 0) spawnLoss(`-${fLost}🥩`, bp.x, bp.y - 50);
+      if (wLost > 0) spawnLoss(`-${wLost}🪵`, bp.x + 25, bp.y - 30);
       showToast(`Raid over. Stolen: ${gLost}🪙 ${fLost}🥩 ${wLost}🪵`);
     } else {
       showToast('Raid repelled! Nothing stolen 🛡️');
@@ -1301,7 +1323,7 @@ function drawFloatingTexts() {
     ctx.globalAlpha = ft.alpha;
     ctx.font = 'bold 14px -apple-system';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = ft.color || '#fff';
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.lineWidth = 3;
     ctx.strokeText(ft.text, ft.x, ft.y);
@@ -1427,11 +1449,12 @@ function updateHUD() {
     hlabel.style.display = 'none';
   }
 
-  // Season badge
+  // Season badge — always show on prestige, with bonus %
   const badge = document.getElementById('season-badge');
   if (state.prestigeLevel > 0) {
     badge.style.display = 'inline-block';
-    badge.textContent = 'Season ' + (state.prestigeLevel + 1);
+    const pct = Math.round((state.prestigeBonus - 1) * 100);
+    badge.textContent = `🌟 S${state.prestigeLevel + 1} +${pct}%`;
   } else {
     badge.style.display = 'none';
   }
@@ -1703,6 +1726,16 @@ function openStats() {
   // Storm protection
   const prot = Math.min(100, (state.wallLevel * 2 + state.fireLevel * 2) * 10);
   document.getElementById('st-protection').textContent = prot + '%';
+
+  // Prestige bonus
+  const prestigeRow = document.getElementById('st-prestige-row');
+  if (state.prestigeLevel > 0) {
+    prestigeRow.style.display = 'flex';
+    const pct = Math.round((state.prestigeBonus - 1) * 100);
+    document.getElementById('st-prestige').textContent = `+${pct}% gathering (Season ${state.prestigeLevel + 1})`;
+  } else {
+    prestigeRow.style.display = 'none';
+  }
 
   document.getElementById('stats-overlay').classList.add('show');
 }
