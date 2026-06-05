@@ -552,6 +552,7 @@ const state = {
   rewardsClaimed: [],
   prestigeLevel: 0, prestigeBonus: 1,
   crystals: 0,
+  crystalsBackfilled: false,
   perks: { prepared: 0, crew: 0, fortified: 0, resilient: 0, agile: 0, hoard: 0 },
   lastSaveTime: Date.now(),
   workerOrder: 'any',
@@ -2106,7 +2107,7 @@ function saveGame() {
       totalGold: state.totalGold, totalFood: state.totalFood, totalWood: state.totalWood,
       hunger: state.hunger, wallDamage: state.wallDamage, nextRaidDay: state.nextRaidDay,
       research: state.research, achievements: state.achievements, rewardsClaimed: state.rewardsClaimed,
-      crystals: state.crystals, perks: state.perks,
+      crystals: state.crystals, perks: state.perks, crystalsBackfilled: state.crystalsBackfilled,
       prestigeLevel: state.prestigeLevel, prestigeBonus: state.prestigeBonus,
       lastSaveTime: state.lastSaveTime,
       workerOrder: state.workerOrder,
@@ -2173,6 +2174,7 @@ if (_save) {
   state.achievements = Array.isArray(_save.achievements) ? _save.achievements.slice() : [];
   state.rewardsClaimed = Array.isArray(_save.rewardsClaimed) ? _save.rewardsClaimed.slice() : [];
   state.crystals = _save.crystals ?? 0;
+  state.crystalsBackfilled = _save.crystalsBackfilled ?? false;
   if (_save.perks) Object.assign(state.perks, _save.perks);
   state.prestigeLevel = _save.prestigeLevel ?? 0;
   state.prestigeBonus = _save.prestigeBonus ?? 1;
@@ -2199,6 +2201,28 @@ applyOfflineProgress(_save);
 
 // Grant rewards for any achievements earned before this update
 if (_save) backfillAchievementRewards();
+
+// One-time crystal grant based on progress earned before perks existed
+if (_save && !state.crystalsBackfilled) {
+  state.crystalsBackfilled = true;
+  const fromPrestige     = state.prestigeLevel * 2;
+  const fromAchievements = state.achievements.length;
+  const fromStorms       = Math.floor(state.survivalScore / 3);
+  const total = fromPrestige + fromAchievements + fromStorms;
+  if (total > 0) {
+    state.crystals += total;
+    const breakdown = [];
+    if (fromPrestige > 0)     breakdown.push(`${fromPrestige} for ${state.prestigeLevel} season${state.prestigeLevel > 1 ? 's' : ''}`);
+    if (fromAchievements > 0) breakdown.push(`${fromAchievements} for achievements`);
+    if (fromStorms > 0)       breakdown.push(`${fromStorms} for storms`);
+    setTimeout(() => showModal('💎 Crystals Awarded',
+      `Based on your progress you earned <b style="color:#c9a0ff;">${total} 💎</b>:<br><br>` +
+      breakdown.map(b => `• ${b}`).join('<br>') +
+      `<br><br>Spend them in the <b>🔮 Perks</b> panel!`,
+      [{ label: 'Claim!', kind: 'primary' }]), 1200);
+  }
+  saveGame();
+}
 
 updateHUD();
 checkAchievements();
