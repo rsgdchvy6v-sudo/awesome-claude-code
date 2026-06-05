@@ -318,10 +318,10 @@
   <button class="order-btn" id="order-wood" onclick="setOrder('wood')">🪵 Wood</button>
 </div>
 <div id="bottom-bar">
-  <div class="btn" id="btn-worker" onclick="buyWorker()"><span class="btn-icon">👷</span>Worker<br><span id="worker-cost" style="color:#adf">🪙20</span></div>
-  <div class="btn" id="btn-wall" onclick="upgradeWall()"><span class="btn-icon">🧱</span>Wall<br><span id="wall-cost" style="color:#adf">🪵30</span></div>
-  <div class="btn" id="btn-fire" onclick="upgradeFire()"><span class="btn-icon">🔥</span>Hearth<br><span id="fire-cost" style="color:#adf">🪵20</span></div>
-  <div class="btn" id="btn-storage" onclick="upgradeStorage()"><span class="btn-icon">📦</span>Storage<br><span id="storage-cost" style="color:#adf">🪵25</span></div>
+  <div class="btn" id="btn-worker" onclick="buyWorker()"><span class="btn-icon">👷</span>Worker <span id="worker-lvl" style="color:rgba(180,230,255,0.7);font-size:10px"></span><br><span id="worker-cost" style="color:#adf">🪙20</span></div>
+  <div class="btn" id="btn-wall" onclick="upgradeWall()"><span class="btn-icon">🧱</span>Wall <span id="wall-lvl" style="color:rgba(180,230,255,0.7);font-size:10px">Lv.1</span><br><span id="wall-cost" style="color:#adf">🪵30</span></div>
+  <div class="btn" id="btn-fire" onclick="upgradeFire()"><span class="btn-icon">🔥</span>Hearth <span id="fire-lvl" style="color:rgba(180,230,255,0.7);font-size:10px">Lv.1</span><br><span id="fire-cost" style="color:#adf">🪵20</span></div>
+  <div class="btn" id="btn-storage" onclick="upgradeStorage()"><span class="btn-icon">📦</span>Storage <span id="storage-lvl" style="color:rgba(180,230,255,0.7);font-size:10px">Lv.1</span><br><span id="storage-cost" style="color:#adf">🪵25</span></div>
   <div class="btn" id="btn-feast" onclick="feast()"><span class="btn-icon">🍖</span>Feast<br><span id="feast-cost" style="color:#adf">🥩15</span></div>
   <div class="btn repair" id="btn-repair" onclick="repairWall()" style="display:none"><span class="btn-icon">🔨</span>Repair<br><span id="repair-cost" style="color:#fda">🪵0</span></div>
 </div>
@@ -1472,12 +1472,16 @@ function updateHUDButtons() {
   const wc = state.workerCost;
   document.getElementById('worker-cost').textContent = '🪙' + wc;
   document.getElementById('btn-worker').className = 'btn' + (state.gold < wc ? ' disabled' : '');
-  document.getElementById('wall-cost').textContent = '🪵' + state.wallCost;
-  document.getElementById('btn-wall').className = 'btn' + (state.wood < state.wallCost ? ' disabled' : '');
-  document.getElementById('fire-cost').textContent = '🪵' + state.fireCost;
-  document.getElementById('btn-fire').className = 'btn' + (state.wood < state.fireCost ? ' disabled' : '');
+  document.getElementById('worker-lvl').textContent = 'x' + state.workers.length;
+  document.getElementById('wall-cost').textContent = '🪵' + (state.wallLevel >= 3 ? 'MAX' : state.wallCost);
+  document.getElementById('btn-wall').className = 'btn' + (state.wallLevel >= 3 || state.wood < state.wallCost ? ' disabled' : '');
+  document.getElementById('wall-lvl').textContent = state.wallLevel >= 3 ? 'MAX' : 'Lv.' + state.wallLevel;
+  document.getElementById('fire-cost').textContent = '🪵' + (state.fireLevel >= 5 ? 'MAX' : state.fireCost);
+  document.getElementById('btn-fire').className = 'btn' + (state.fireLevel >= 5 || state.wood < state.fireCost ? ' disabled' : '');
+  document.getElementById('fire-lvl').textContent = state.fireLevel >= 5 ? 'MAX' : 'Lv.' + state.fireLevel;
   document.getElementById('storage-cost').textContent = '🪵' + state.storageCost;
   document.getElementById('btn-storage').className = 'btn' + (state.wood < state.storageCost ? ' disabled' : '');
+  document.getElementById('storage-lvl').textContent = 'Lv.' + state.storageLevel;
   document.getElementById('feast-cost').textContent = '🥩' + state.feastCost;
   document.getElementById('btn-feast').className = 'btn' + (state.food < state.feastCost ? ' disabled' : '');
 
