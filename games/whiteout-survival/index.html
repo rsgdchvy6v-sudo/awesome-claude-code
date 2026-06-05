@@ -322,6 +322,7 @@
   <div class="icon-btn" onclick="openStats()">📊</div>
   <div class="icon-btn" onclick="openResearch()">🔬</div>
   <div class="icon-btn" onclick="openAchievements()">🏆</div>
+  <div class="icon-btn" onclick="openPerks()">🔮</div>
 </div>
 <div id="season-cta" onclick="confirmPrestige()">🌟 New Season</div>
 <div id="order-bar">
@@ -432,6 +433,18 @@
   </div>
 </div>
 
+<!-- Perks panel -->
+<div id="perks-overlay" class="overlay" onclick="closeBg(event,'perks-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔮 PRESTIGE PERKS</div>
+    <div style="text-align:center;color:rgba(180,210,255,0.8);font-size:13px;margin-bottom:4px;">Crystals: <b style="color:#c9a0ff;" id="perks-crystals">0 💎</b></div>
+    <div style="text-align:center;color:rgba(180,210,255,0.5);font-size:11px;margin-bottom:14px;">Earned by prestiging. Perks survive every season reset.</div>
+    <div id="perks-list"></div>
+    <button class="close-btn" onclick="closeOverlay('perks-overlay')">Close</button>
+  </div>
+</div>
+
 <!-- Achievements panel -->
 <div id="ach-overlay" class="overlay" onclick="closeBg(event,'ach-overlay')">
   <div class="sheet">
@@ -489,6 +502,15 @@ const RESEARCH_DEFS = {
   goldrush:{ icon: '⛏️', name: 'Gold Rush',    desc: 'Mines give +1 gold per level',          costs: [40,80,160] },
 };
 
+const PERK_DEFS = {
+  prepared:  { icon: '🏕️', name: 'Prepared Camp',   desc: 'Start each season with bonus resources',     costs: [1,2,3], values: [15,30,50] },
+  crew:      { icon: '👷', name: 'Veteran Crew',     desc: 'Start each season with extra workers',       costs: [1,2,3], values: [1,2,3]  },
+  fortified: { icon: '🧱', name: 'Hardened Walls',   desc: 'Wall takes -1/-2 damage per storm',          costs: [2,3],   values: [1,2]    },
+  resilient: { icon: '🛡️', name: 'Cold Resilience',  desc: 'Storm food loss reduced by 3/6/9',           costs: [1,2,3], values: [3,6,9]  },
+  agile:     { icon: '⚡', name: 'Agile Workforce',  desc: 'Workers permanently +15% speed per level',   costs: [1,2,3], values: [1,2,3]  },
+  hoard:     { icon: '📦', name: 'Pack Rat',          desc: '+50 permanent storage cap per level',        costs: [1,2,3], values: [50,50,50]},
+};
+
 const ACHIEVEMENTS = [
   { id: 'firstlight', icon: '🌅', name: 'First Light',    desc: 'Reach Day 5',                reward: { type: 'gold',           value: 15,  label: '+15 🪙 Gold' } },
   { id: 'survivor',   icon: '❄️', name: 'Storm Survivor', desc: 'Survive your first blizzard', reward: { type: 'repair',         value: 0,   label: 'Wall Repaired 🧱' } },
@@ -529,6 +551,8 @@ const state = {
   achievements: [],
   rewardsClaimed: [],
   prestigeLevel: 0, prestigeBonus: 1,
+  crystals: 0,
+  perks: { prepared: 0, crew: 0, fortified: 0, resilient: 0, agile: 0, hoard: 0 },
   lastSaveTime: Date.now(),
   workerOrder: 'any',
 };
@@ -646,6 +670,7 @@ function assignWorker(w) {
 function workerSpeedMult(w) {
   let m = state.prestigeBonus;
   m *= 1 + 0.15 * state.research.swift;            // Swift Feet
+  m *= 1 + 0.15 * (state.perks.agile || 0);        // Agile Workforce perk
   if (state.timeOfDay > 0.6) m *= 0.8;             // night slowdown
   if (w.state === 'returning' && w.carryAmt > 0) m *= 0.65; // carry slowdown
   return m;
@@ -893,9 +918,10 @@ function triggerStorm() {
   showToast('❄️ Blizzard! Workers shelter now!');
   setTimeout(() => { el.style.display = 'none'; }, 3000);
 
-  // Wall damage accrues
+  // Wall damage accrues (Hardened Walls perk reduces damage)
   const prevDamage = state.wallDamage;
-  state.wallDamage += Math.max(0, 2 - state.wallLevel);
+  const fortifiedReduction = state.perks.fortified || 0;
+  state.wallDamage += Math.max(0, 2 - state.wallLevel - fortifiedReduction);
   // If wall was already crumbling, resources get stolen
   if (prevDamage >= 3) {
     const fLost = Math.floor(state.food * 0.2);
@@ -921,7 +947,8 @@ function updateStorm(dt) {
   // Storm lasts ~10 seconds real time
   if (state.stormTimer > 10000) {
     state.storm = false;
-    const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2);
+    const resilientBonus = [0,3,6,9][state.perks.resilient] || 0;
+    const dmg = Math.max(0, 10 - state.wallLevel * 2 - state.fireLevel * 2 - resilientBonus);
     if (dmg > 0) {
       state.food = Math.max(0, state.food - dmg);
       const bp = isoProject(BASE_CX, BASE_CY);
@@ -1760,6 +1787,66 @@ function renderResearch() {
 
 function openResearch() { renderResearch(); document.getElementById('research-overlay').classList.add('show'); }
 
+// ─── Perks ────────────────────────────────────────────────────────────────────
+function buyPerk(key) {
+  const def = PERK_DEFS[key];
+  const lvl = state.perks[key];
+  if (lvl >= def.costs.length) return;
+  const cost = def.costs[lvl];
+  if (state.crystals < cost) { showToast('Need more 💎 crystals — earn them by prestiging'); return; }
+  state.crystals -= cost;
+  state.perks[key]++;
+  // Pack Rat immediately expands storage cap
+  if (key === 'hoard') state.maxStorage += def.values[lvl];
+  showToast(def.icon + ' ' + def.name + ' Lv.' + state.perks[key] + '!');
+  vibrate(30);
+  updateHUD();
+  renderPerks();
+  saveGame();
+}
+
+function renderPerks() {
+  document.getElementById('perks-crystals').textContent = (state.crystals || 0) + ' 💎';
+  const list = document.getElementById('perks-list');
+  list.innerHTML = Object.keys(PERK_DEFS).map(key => {
+    const def = PERK_DEFS[key];
+    const lvl = state.perks[key] || 0;
+    const maxLvl = def.costs.length;
+    const maxed = lvl >= maxLvl;
+    const cost = maxed ? null : def.costs[lvl];
+    const afford = !maxed && state.crystals >= cost;
+    const pips = Array.from({length: maxLvl}, (_, i) =>
+      `<div class="rc-pip${i < lvl ? ' on' : ''}" style="${i < lvl ? 'background:linear-gradient(90deg,#c9a0ff,#8b5cf6)' : ''}"></div>`
+    ).join('');
+    const costBox = maxed
+      ? `<div class="rc-cost maxed">MAX</div>`
+      : `<div class="rc-cost" style="color:#c9a0ff;">${cost}💎</div>`;
+    const cls = 'research-card' + (maxed ? ' maxed' : (afford ? '' : ' locked'));
+    const onclick = maxed ? '' : `onclick="buyPerk('${key}')"`;
+    // Effect hint for current level
+    const effectHints = {
+      prepared:  lvl > 0 ? `+${[0,15,30,50][lvl]} resources at season start` : 'No bonus yet',
+      crew:      lvl > 0 ? `+${[0,1,2,3][lvl]} starting workers` : 'No bonus yet',
+      fortified: lvl > 0 ? `-${[0,1,2][lvl]} storm wall damage` : 'No bonus yet',
+      resilient: lvl > 0 ? `-${[0,3,6,9][lvl]} storm food loss` : 'No bonus yet',
+      agile:     lvl > 0 ? `+${lvl * 15}% worker speed` : 'No bonus yet',
+      hoard:     lvl > 0 ? `+${PERK_DEFS.hoard.values.slice(0,lvl).reduce((s,v)=>s+v,0)} storage cap` : 'No bonus yet',
+    };
+    return `<div class="${cls}" ${onclick}>
+      <div class="rc-icon">${def.icon}</div>
+      <div class="rc-mid">
+        <div class="rc-name">${def.name} <span style="color:rgba(180,210,255,0.6);font-weight:600;font-size:11px;">Lv.${lvl}/${maxLvl}</span></div>
+        <div class="rc-desc">${def.desc}</div>
+        <div style="font-size:10px;color:rgba(200,170,255,0.7);margin-top:3px;">${effectHints[key]}</div>
+        <div class="rc-lvl">${pips}</div>
+      </div>
+      ${costBox}
+    </div>`;
+  }).join('');
+}
+
+function openPerks() { renderPerks(); document.getElementById('perks-overlay').classList.add('show'); }
+
 // ─── Achievements panel ───────────────────────────────────────────────────────
 function renderAchievements() {
   document.getElementById('ach-count').textContent = state.achievements.length;
@@ -1900,11 +1987,12 @@ function closeModal() { document.getElementById('modal-overlay').classList.remov
 // ─── Prestige / Seasons ───────────────────────────────────────────────────────
 function confirmPrestige() {
   if (!(state.day >= 30 && state.survivalScore >= 3)) return;
+  const crystalPreview = 2 + Math.floor(state.survivalScore / 3);
   showModal('🌟 New Season',
     `Winter deepens. Start <b>Season ${state.prestigeLevel + 2}</b>?<br><br>` +
-    `You keep: <b>all research</b>.<br>` +
-    `You earn: <b>+10% permanent gathering bonus</b>.<br>` +
-    `You lose: resources, workers (keep 3), buildings reset.`,
+    `You keep: <b>research</b> + <b>perks</b>.<br>` +
+    `You earn: <b>+10% gathering</b> · <b>+${crystalPreview}💎</b>.<br>` +
+    `You lose: resources, buildings reset.`,
     [
       { label: 'Cancel', kind: 'secondary' },
       { label: 'Begin Season', kind: 'primary', onClick: doPrestige },
@@ -1912,25 +2000,39 @@ function confirmPrestige() {
 }
 
 function doPrestige() {
+  // Award crystals before resetting survivalScore
+  const earned = 2 + Math.floor(state.survivalScore / 3);
+  state.crystals = (state.crystals || 0) + earned;
+
   state.prestigeLevel++;
   state.prestigeBonus *= 1.10;
-  state.gold = 10; state.food = 10; state.wood = 5;
+
+  // Starting resources — boosted by Prepared Camp perk
+  const prepBonus = [0, 15, 30, 50][state.perks.prepared] || 0;
+  state.gold = 10 + prepBonus; state.food = 10 + prepBonus; state.wood = 5 + prepBonus;
+
   state.workerCost = 20;
   state.wallLevel = 1; state.wallCost = 30;
   state.fireLevel = 1; state.fireCost = 20;
   state.storageLevel = 1; state.storageCost = 25;
-  // Storage cap = base 100 + research bonus
-  state.maxStorage = 100 + 75 * state.research.storage;
+
+  // Storage cap = base + research + Pack Rat perk
+  const hoardTotal = PERK_DEFS.hoard.values.slice(0, state.perks.hoard).reduce((s,v) => s+v, 0);
+  state.maxStorage = 100 + 75 * state.research.storage + hoardTotal;
+
   state.wallDamage = 0; state.hunger = 0;
   state.day = 1; state.dayTimer = 0; state.timeOfDay = 0;
   state.survivalScore = 0; state.stormsTriggered = 0;
   state.storm = false; state.raid = false; state.nextRaidDay = 20;
-  // Reset to 3 workers
+
+  // Workers = 3 + Veteran Crew perk
   state.workers = [];
-  for (let i = 0; i < 3; i++) state.workers.push(createWorker(i));
+  const startWorkers = 3 + (state.perks.crew || 0);
+  for (let i = 0; i < startWorkers; i++) state.workers.push(createWorker(i));
+
   initResourceNodes();
   document.getElementById('day-num').textContent = state.day;
-  showToast(`🌟 Season ${state.prestigeLevel + 1} begins! +${Math.round((state.prestigeBonus-1)*100)}% gathering`);
+  showToast(`🌟 Season ${state.prestigeLevel + 1} begins! +${Math.round((state.prestigeBonus-1)*100)}% · +${earned}💎`);
   vibrate([50,30,50]);
   updateHUD();
 }
@@ -2004,6 +2106,7 @@ function saveGame() {
       totalGold: state.totalGold, totalFood: state.totalFood, totalWood: state.totalWood,
       hunger: state.hunger, wallDamage: state.wallDamage, nextRaidDay: state.nextRaidDay,
       research: state.research, achievements: state.achievements, rewardsClaimed: state.rewardsClaimed,
+      crystals: state.crystals, perks: state.perks,
       prestigeLevel: state.prestigeLevel, prestigeBonus: state.prestigeBonus,
       lastSaveTime: state.lastSaveTime,
       workerOrder: state.workerOrder,
@@ -2069,6 +2172,8 @@ if (_save) {
   if (_save.research) Object.assign(state.research, _save.research);
   state.achievements = Array.isArray(_save.achievements) ? _save.achievements.slice() : [];
   state.rewardsClaimed = Array.isArray(_save.rewardsClaimed) ? _save.rewardsClaimed.slice() : [];
+  state.crystals = _save.crystals ?? 0;
+  if (_save.perks) Object.assign(state.perks, _save.perks);
   state.prestigeLevel = _save.prestigeLevel ?? 0;
   state.prestigeBonus = _save.prestigeBonus ?? 1;
   state.workerOrder = _save.workerOrder ?? 'any';
